@@ -152,6 +152,8 @@ class ProjectionLayer(Layer):
         return params
         
 
+
+
 class FactorizedSoftmax(Softmax):
     # TODO cleanup target, class name mess, it's confusing
     def __init__(self, n_clusters = None, clusters_scope = None, **kwargs):
@@ -161,12 +163,13 @@ class FactorizedSoftmax(Softmax):
         del self.b
         self.b_class = sharedX(np.zeros((self.n_clusters, self.n_classes)), name = 'softmax_b_class')
         self.b_cluster = sharedX( np.zeros((self.n_clusters)), name = 'softmax_b_clusters')
-        self.output_space = VectorSpace(1)
-	print self.output_space
-	
+        
+        #hardcoding
+        self.output_space = VectorSpace(10000)
+
     def set_input_space(self, space):
         self.input_space = space
-	print space
+        print space
         if not isinstance(space, Space):
             raise TypeError("Expected Space, got "+
                     str(space)+" of type "+str(type(space)))
@@ -213,7 +216,8 @@ class FactorizedSoftmax(Softmax):
 
             self._params = [self.b_class, self.W_class, self.b_cluster, self.W_cluster]
 
-    def get_monitoring_channels(self):
+    def get_layer_monitoring_channels(self, state_below=None,
+                                    state=None, targets=NotImplementedError):
 
         if self.no_affine:
             return OrderedDict()
@@ -272,8 +276,12 @@ class FactorizedSoftmax(Softmax):
         y_hat, y_cls = Y_hat
         
         #separated
-        Y = Y
+        
+        #have to change y as argmax
+        #also make cls a shared variable and use that
+        #Y,
         CLS = Y
+        
         assert hasattr(y_hat, 'owner')
         owner = y_hat.owner
         assert owner is not None
@@ -304,6 +312,7 @@ class FactorizedSoftmax(Softmax):
         z = z - z.max(axis=1).dimshuffle(0, 'x')
         log_prob = z - T.log(T.exp(z).sum(axis=1).dimshuffle(0, 'x'))
 
+        print Y
         # we use sum and not mean because this is really one variable per row
         Y = OneHotFormatter(self.n_classes).theano_expr(
                                 T.addbroadcast(Y, 1).dimshuffle(0).astype('uint32'))
@@ -323,6 +332,8 @@ class FactorizedSoftmax(Softmax):
         log_prob_of = log_prob_of + log_prob_of_cls
         rval = log_prob_of.mean()
 
+       
+        
         return - rval
 
     def get_monitoring_channels_from_state(self, state, target=None, cluster_tragets = None):
@@ -350,7 +361,7 @@ class FactorizedSoftmax(Softmax):
 
       
     def fprop(self, state_below):
-        self.input_space.validate(state_below)
+        self.input_space.validate(state_below)        
 
         if self.needs_reformat:
             state_below = self.input_space.format_as(state_below, self.desired_space)
@@ -373,15 +384,14 @@ class FactorizedSoftmax(Softmax):
 
         cls = T.dot(state_below, self.W_cluster) + self.b_cluster
         cls = T.nnet.softmax(cls)
-        
-	cluster_tragetss = [0,1,1,2,3,1,4,1,2,3]
+        cluster_tragetss = [0,1,1,2,3,1,4,1,2,3]
         
         Z = T.nnet.GroupDot(self.n_clusters)(state_below,
                                                     self.W_class,
                                                     self.b_class,
                                         cluster_tragetss)
         rval = T.nnet.softmax(Z)
-	
+	    
         #for value in get_debug_values(rval):
          #    if self.mlp.batch_size is not None:
           #      assert value.shape[0] == self.mlp.batch_size

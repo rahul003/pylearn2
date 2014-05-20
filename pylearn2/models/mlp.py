@@ -569,7 +569,7 @@ class MLP(Layer):
         state = X
         rval = self.get_layer_monitoring_channels(state_below=X,
                                                     targets=Y)
-
+        
         return rval
 
     @wraps(Layer.get_monitoring_channels_from_state)
@@ -626,8 +626,7 @@ class MLP(Layer):
 
 
     @wraps(Layer.get_layer_monitoring_channels)
-    def get_layer_monitoring_channels(self, state_below=None,
-                                        state=None, targets=None):
+    def get_layer_monitoring_channels(self, state_below=None, state=None, targets=None):
 
         rval = OrderedDict()
         if state_below is not None:
@@ -1252,7 +1251,7 @@ class Softmax(Layer):
                     "instead. Layer.get_monitoring_channels " + \
                     "will be removed on or after september 24th 2014",
                     stacklevel=2)
-
+        print 'in get_monitoring_channels'
         if self.no_affine:
             return OrderedDict()
 
@@ -1323,7 +1322,7 @@ class Softmax(Layer):
         # channels that does not require state information
         if self.no_affine:
             rval = OrderedDict()
-
+        print 'in get_layer_monitoring_channels'
         W = self.W
 
         assert W.ndim == 2
