@@ -398,26 +398,6 @@ class FactorizedSoftmax(Softmax):
 
         return rval, cls
 
-    def censor_updates(self, updates):
-        #if self.no_affine:
-            #return
-        #if self.max_row_norm is not None:
-            #W = self.W
-            #if W in updates:
-                #updated_W = updates[W]
-                #row_norms = T.sqrt(T.sum(T.sqr(updated_W), axis=1))
-                #desired_norms = T.clip(row_norms, 0, self.max_row_norm)
-                #updates[W] = updated_W * (desired_norms / (1e-7 + row_norms)).dimshuffle(0, 'x')
-        #if self.max_col_norm is not None:
-            #assert self.max_row_norm is None
-            #W = self.W
-            #if W in updates:
-                #updated_W = updates[W]
-                #col_norms = T.sqrt(T.sum(T.sqr(updated_W), axis=0))
-                #desired_norms = T.clip(col_norms, 0, self.max_col_norm)
-                #updates[W] = updated_W * (desired_norms / (1e-7 + col_norms))
-        return
-
     def get_weights_format(self):
         return ('v', 'h', 'h_c')
 

@@ -39,6 +39,7 @@ class PennTreebank(DenseDesignMatrix):
         path = ("${PYLEARN2_DATA_PATH}/PennTreebankCorpus/" +
                 "penntree_char_and_word.npz")
         npz_data = serial.load(path)
+
         if which_set == 'train':
             self._raw_data = npz_data['train_words']
         elif which_set == 'valid':
@@ -55,13 +56,15 @@ class PennTreebank(DenseDesignMatrix):
                                        context_len + 1),
                                 strides=(self._raw_data.itemsize,
                                          self._raw_data.itemsize))
-
+      
         super(PennTreebank, self).__init__(
             X=self._data[:, :-1],
             y=self._data[:, -1:],
             X_labels=10000, y_labels=10000
         )
 
+        
+        
         if shuffle:
             warnings.warn("Note that the PennTreebank samples are only "
                           "shuffled when the iterator method is used to "
@@ -69,3 +72,4 @@ class PennTreebank(DenseDesignMatrix):
             self._iter_subset_class = resolve_iterator_class(
                 'shuffled_sequential'
             )
+
