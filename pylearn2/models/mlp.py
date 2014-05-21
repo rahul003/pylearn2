@@ -1144,6 +1144,10 @@ class MLP(Layer):
         """
         self.cost_from_X_data_specs()[0].validate(data)
         X, Y = data
+
+        print data
+        print X
+        print Y
         Y_hat = self.fprop(X)
         return self.cost(Y, Y_hat)
 
@@ -1431,12 +1435,10 @@ class Softmax(Layer):
 
     @wraps(Layer.set_weights)
     def set_weights(self, weights):
-
         self.W.set_value(weights)
 
     @wraps(Layer.set_biases)
     def set_biases(self, biases):
-
         self.b.set_value(biases)
 
     @wraps(Layer.get_biases)
@@ -1446,7 +1448,6 @@ class Softmax(Layer):
 
     @wraps(Layer.get_weights_format)
     def get_weights_format(self):
-
         return ('v', 'h')
 
     @wraps(Layer.fprop)

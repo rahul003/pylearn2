@@ -1,9 +1,11 @@
 import os
-
+import theano
 import pylearn2
 from pylearn2.termination_criteria import EpochCounter
 from pylearn2.testing.skip import skip_if_no_data
 from pylearn2.config import yaml_parse
+
+theano.config.exception_verbosity = 'high'
 
 skip_if_no_data()
 with open('/home/rh/git/pylearn2/pylearn2/sandbox/nlp/scripts/language_model/facsoft.yaml', 'r') as f:

@@ -56,7 +56,7 @@ class PennTreebank(DenseDesignMatrix):
                                        context_len + 1),
                                 strides=(self._raw_data.itemsize,
                                          self._raw_data.itemsize))
-      
+        print self._data
         super(PennTreebank, self).__init__(
             X=self._data[:, :-1],
             y=self._data[:, -1:],

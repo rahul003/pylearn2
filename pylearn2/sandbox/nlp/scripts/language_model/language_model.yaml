@@ -21,11 +21,10 @@
                 layer_name: 'tanh',
                 dim: 256,
                 irange: 0.01
-            }, !obj:pylearn2.sandbox.nlp.models.mlp.FactorizedSoftmax {
-                n_clusters: 5,
-                layer_name: 'factorizedsoftmax',
-                irange: 0.01,
+            }, !obj:pylearn2.sandbox.nlp.models.mlp.Softmax {
                 n_classes: 10000,
+                layer_name: 'softmax',
+                irange: 0.01
             }
         ],
         input_space: !obj:pylearn2.space.IndexSpace {
@@ -34,7 +33,7 @@
         }
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
-        batch_size: 100,
+        batch_size: 256,
         learning_rate: .1,
         monitoring_dataset: {
             'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
