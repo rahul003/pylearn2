@@ -19,7 +19,7 @@ from pylearn2.utils.iteration import resolve_iterator_class
 
 class PennTreebank(DenseDesignMatrix):
     """
-    Loads the Penn Treebank corpus.
+    Loads the Penn Treebank corpus.fac
 
     Parameters
     ----------
@@ -32,7 +32,7 @@ class PennTreebank(DenseDesignMatrix):
         Whether to shuffle the samples or go through the dataset
         linearly
     """
-    def __init__(self, which_set, context_len, shuffle=True):
+    def __init__(self, which_set, context_len, shuffle=False):
         """
         Loads the data and turns it into n-grams
         """
@@ -50,15 +50,14 @@ class PennTreebank(DenseDesignMatrix):
             raise ValueError("Dataset must be one of 'train', 'valid' "
                              "or 'test'")
         del npz_data  # Free up some memory?
-
         self._data = as_strided(self._raw_data,
                                 shape=(len(self._raw_data) - context_len,
                                        context_len + 1),
                                 strides=(self._raw_data.itemsize,
                                          self._raw_data.itemsize))
-        print self._data
         super(PennTreebank, self).__init__(
             X=self._data[:, :-1],
+
             y=self._data[:, -1:],
             X_labels=10000, y_labels=10000
         )

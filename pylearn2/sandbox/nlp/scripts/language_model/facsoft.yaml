@@ -21,11 +21,12 @@
                 layer_name: 'tanh',
                 dim: 256,
                 irange: 0.01
-            }, !obj:pylearn2.sandbox.nlp.models.mlp.FactorizedSoftmax {
+            }, !obj:pylearn2.sandbox.nlp.models.mlp.ClassBasedOutput {
                 n_clusters: 5,
-                layer_name: 'factorizedsoftmax',
+                layer_name: 'classbasedoutput',
                 irange: 0.01,
                 n_classes: 10000,
+                classclusterpath: '/u/huilgolr/data/PennTreebank/processed.npz'
             }
         ],
         input_space: !obj:pylearn2.space.IndexSpace {

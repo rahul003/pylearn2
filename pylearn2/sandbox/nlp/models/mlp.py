@@ -19,6 +19,8 @@ from pylearn2.utils import logger
 from pylearn2.format.target_format import OneHotFormatter
 import numpy as np
 
+from pylearn2.utils import serial
+
 class Softmax(mlp.Softmax):
     """
     An extension of the MLP's softmax layer which monitors
@@ -154,17 +156,22 @@ class ProjectionLayer(Layer):
 
 
 
-class FactorizedSoftmax(Softmax):
+class ClassBasedOutput(Softmax):
     # TODO cleanup target, class name mess, it's confusing
-    def __init__(self, n_clusters = None, clusters_scope = None, **kwargs):
-        super(FactorizedSoftmax, self).__init__(**kwargs)
+    def __init__(self, n_clusters = None, classclusterpath= None, clusters_scope = None, **kwargs):
+        super(ClassBasedOutput, self).__init__(**kwargs)
         self.n_clusters = n_clusters
 
         del self.b
         self.b_class = sharedX(np.zeros((self.n_clusters, self.n_classes)), name = 'softmax_b_class')
         self.b_cluster = sharedX( np.zeros((self.n_clusters)), name = 'softmax_b_clusters')
         
+        npz_data = serial.load(classclusterpath)
+        self.classclusters=sharedX(npz_data['word_clusters'],'classclusters')
+
         self.cluster_targets = np.random.randint(0,n_clusters,size=(self.n_classes))
+        #cluster_targets is a nx1 array which tells which cluster the word
+
         keys = range(n_clusters)
         self.clusters_scope = dict(zip(keys, np.bincount(self.cluster_targets)))
         
@@ -283,7 +290,7 @@ class FactorizedSoftmax(Softmax):
         #have to change y as argmax
         #also make cls a shared variable and use that
         #Y,
-        CLS = self.cluster_targets
+        CLS = self.classclusters
         
         assert hasattr(y_hat, 'owner')
         owner = y_hat.owner
@@ -370,7 +377,8 @@ class FactorizedSoftmax(Softmax):
 
         cls = T.dot(state_below, self.W_cluster) + self.b_cluster
         cls = T.nnet.softmax(cls)
-        self.cluster_targets = range(5) 
+        self.cluster_targets = self.classclusters[y]
+        
         Z = T.nnet.GroupDot(self.n_clusters)(state_below,
                                                     self.W_class,
                                                     self.b_class,
