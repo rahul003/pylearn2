@@ -1,0 +1,7 @@
+  overall:
+
+        X, Y = data
+        Y_hat = self.fprop(X)
+        return self.cost(Y, Y_hat)
+
+        

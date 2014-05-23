@@ -166,7 +166,7 @@ class ClassBasedOutput(Softmax):
         self.b_class = sharedX(np.zeros((self.n_clusters, self.n_classes)), name = 'softmax_b_class')
         self.b_cluster = sharedX( np.zeros((self.n_clusters)), name = 'softmax_b_clusters')
         
-        npz_data = serial.load(classclusterpath)
+        npz_data = serial.load("${PYLEARN2_DATA_PATH}/PennTreebankCorpus/" + classclusterpath)
         self.classclusters=sharedX(npz_data['word_clusters'],'classclusters')
 
         self.cluster_targets = np.random.randint(0,n_clusters,size=(self.n_classes))
@@ -174,6 +174,9 @@ class ClassBasedOutput(Softmax):
 
         keys = range(n_clusters)
         self.clusters_scope = dict(zip(keys, np.bincount(self.cluster_targets)))
+
+        self._group_dot = _group_dot
+
         
     def set_input_space(self, space):
         self.input_space = space
@@ -243,7 +246,6 @@ class ClassBasedOutput(Softmax):
         row_norms_class = T.sqrt(sq_W_class.sum(axis=1))
         col_norms_class = T.sqrt(sq_W_class.sum(axis=0))
 
-
         rval = OrderedDict([
                             ('row_norms_min'  , row_norms.min()),
                             ('row_norms_mean' , row_norms.mean()),
@@ -262,6 +264,9 @@ class ClassBasedOutput(Softmax):
 
         if (state_below is not None) or (state is not None):
             if state is None:
+
+                for value in get_debug_values(state_below):
+                    print 'value is'+ value
                 state=self.fprop (state_below)
             #print state
             state, cls = state
@@ -290,8 +295,12 @@ class ClassBasedOutput(Softmax):
         #have to change y as argmax
         #also make cls a shared variable and use that
         #Y,
-        CLS = self.classclusters
         
+        #CLS = self.classclusters[Y]
+        #Y = self._group_dot.fprop(Y, Y_hat)
+        
+        CLS = self.cluster_targets
+
         assert hasattr(y_hat, 'owner')
         owner = y_hat.owner
         assert owner is not None
@@ -303,11 +312,11 @@ class ClassBasedOutput(Softmax):
           op = owner.op
         assert isinstance(op, T.nnet.Softmax)
 
-        print 'own'
-        print owner,op
+        #print 'own'
+        #print owner,op
         z ,= owner.inputs
-        print 'z:'
-        print z
+        #print 'z:'
+        #print z
         assert z.ndim == 2
 
         assert hasattr(y_cls, 'owner')
@@ -321,15 +330,15 @@ class ClassBasedOutput(Softmax):
             op = owner.op
         assert isinstance(op, T.nnet.Softmax)
         z_cls ,= owner.inputs
-        print 'z_cls:'
-        print z_cls
+        #print 'z_cls:'
+        #print z_cls
         assert z_cls.ndim == 2
 
         # Y
-        print z
+        #print z
         z = z - z.max(axis=1).dimshuffle(0, 'x')
         log_prob = z - T.log(T.exp(z).sum(axis=1).dimshuffle(0, 'x'))
-        print log_prob
+        #print log_prob
         #print Y.ndim
 
         # we use sum and not mean because this is really one variable per row
@@ -356,40 +365,48 @@ class ClassBasedOutput(Softmax):
         #change model to add new variable which sends which indices of the data are here
         self.input_space.validate(state_below)        
 
+
         if self.needs_reformat:
             state_below = self.input_space.format_as(state_below, self.desired_space)
-	   
         for value in get_debug_values(state_below):
-            if self.mlp.batch_size is not None and value.shape[0] != self.mlp.batch_size:
-                raise ValueError("state_below should have batch size "+str(self.dbm.batch_size)+" but has "+str(value.shape[0]))
-
+            print 'getting debug values'
+            print value
+        #     if self.mlp.batch_size is not None and value.shape[0] != self.mlp.batch_size:
+        #         raise ValueError("state_below should have batch size "+str(self.dbm.batch_size)+" but has "+str(value.shape[0]))
         self.desired_space.validate(state_below)
         assert state_below.ndim == 2
-
         if not hasattr(self, 'no_affine'):
             self.no_affine = False
-
         if self.no_affine:
             raise NotImplementedError()
 
         assert self.W_class.ndim == 3
         assert self.W_cluster.ndim == 2
 
-        cls = T.dot(state_below, self.W_cluster) + self.b_cluster
-        cls = T.nnet.softmax(cls)
-        self.cluster_targets = self.classclusters[y]
-        
+        #we get the cluster by doing hW_cluster + b_cluster
+        probcluster = T.dot(state_below, self.W_cluster) + self.b_cluster
+        probcluster = T.nnet.softmax(probcluster)
+        for value in get_debug_values(probcluster):
+            print 'val is'
+            print val
+
+        print 'type of state below is'
+        print state_below.type
+        print state_below.dtype
+        print state_below.ndim
+        self.cluster_targets = range(5)
+
+        #need the predicted clusters for this batch
+            
         Z = T.nnet.GroupDot(self.n_clusters)(state_below,
                                                     self.W_class,
                                                     self.b_class,
                                         self.cluster_targets)
-        rval = T.nnet.softmax(Z)
-	    
-        for value in get_debug_values(rval):
+        probclass = T.nnet.softmax(Z)
+        for value in get_debug_values(probclass):
              if self.mlp.batch_size is not None:
                 assert value.shape[0] == self.mlp.batch_size
-
-        return rval, cls
+        return probclass, probcluster
 
     def get_weights_format(self):
         return ('v', 'h', 'h_c')

@@ -1144,10 +1144,6 @@ class MLP(Layer):
         """
         self.cost_from_X_data_specs()[0].validate(data)
         X, Y = data
-
-        print data
-        print X
-        print Y
         Y_hat = self.fprop(X)
         return self.cost(Y, Y_hat)
 
@@ -1484,6 +1480,23 @@ class Softmax(Layer):
     @wraps(Layer.cost)
     def cost(self, Y, Y_hat):
 
+        """
+        To find the cost of outputting Y_hat instead of Y
+
+        Y_hat is coming out of some apply node. 
+        First check if it has an owner
+        And find its op.
+        Then find its inputs as z
+        op will be softmax
+        input will be hW+b
+        we are further checking that this is 2D
+
+
+        the assumption that softmax makes is
+            logp(y given x)=xTW+b+c(x)
+        so p(y given x) = softmax(xTW + b)
+        then sum(ez)
+        """
         assert hasattr(Y_hat, 'owner')
         owner = Y_hat.owner
         assert owner is not None
@@ -1497,7 +1510,17 @@ class Softmax(Layer):
         z, = owner.inputs
         assert z.ndim == 2
 
+        #z.max along axis =1 means the maximum value in each column
+        #because operation is performed over eeach row.check maximum 
+        #over all rows of each column
         z = z - z.max(axis=1).dimshuffle(0, 'x')
+
+        #why are we submtracting the maximum value of z
+
+        #dimshuffle(0,'x') makes a column out of a 1d vector.
+        #i.e. N to Nx1
+        #because i guess z is a column vector
+
         log_prob = z - T.log(T.exp(z).sum(axis=1).dimshuffle(0, 'x'))
         # we use sum and not mean because this is really one variable per row
         log_prob_of = (Y * log_prob).sum(axis=1)
