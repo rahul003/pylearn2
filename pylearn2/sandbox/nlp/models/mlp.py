@@ -279,7 +279,7 @@ class MLP(mlp.MLP):
 
 class ClassBasedOutput(Softmax):
     # TODO cleanup target, class name mess, it's confusing
-    def __init__(self, n_clusters = None, classclusterpath= None, clusters_scope = None, **kwargs):
+    def __init__(self, n_clusters = None, classclusterpath= None, **kwargs):
         super(ClassBasedOutput, self).__init__(**kwargs)
         self.n_clusters = n_clusters
 
@@ -287,7 +287,7 @@ class ClassBasedOutput(Softmax):
         self.b_class = sharedX(np.zeros((self.n_clusters, self.n_classes)), name = 'softmax_b_class')
         self.b_cluster = sharedX( np.zeros((self.n_clusters)), name = 'softmax_b_clusters')
         
-        npz_clust = serial.load("${PYLEARN2_DATA_PATH}/PennTreebankCorpus/" + classclusterpath)        
+        npz_clust = serial.load(classclusterpath)        
         array_clusters = npz_clust['wordwithclusters']
        
         #z = array_clusters[np.in1d(array_clusters[:,0], self._data[:,-1:]), 1]

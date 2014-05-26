@@ -26,7 +26,7 @@
                 layer_name: 'classbasedoutput',
                 irange: 0.01,
                 n_classes: 10000,
-                classclusterpath: 'processed.npz'
+                classclusterpath: '/u/huilgolr/data/PennTreebank/processed.npz'
             }
         ],
         input_space: !obj:pylearn2.space.IndexSpace {
