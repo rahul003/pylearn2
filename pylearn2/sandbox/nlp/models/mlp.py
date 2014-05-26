@@ -186,7 +186,6 @@ class MLP(mlp.MLP):
             return rlist
         return rval
 
-
     def cost_from_X(self, data):
         """
         Computes self.cost, but takes data=(X, Y) rather than Y_hat as an
@@ -394,28 +393,25 @@ class ClassBasedOutput(Softmax):
                     print 'value is'+ value
                 state=self.fprop (state_below,targets)
             #print state
-            state, cls = state
-            mx = state.max(axis=1)
+            probclass, probcluster = state
+            mx = probclass.max(axis=1)
             rval.update(OrderedDict([('mean_max_class',mx.mean()),
                                      ('max_max_class' , mx.max()),
                                      ('min_max_class' , mx.min())
                                     ]))
             if targets is not None:
-                rval['nll'] = self.cost(Y_hat=(state,cls), Y=targets)
+                rval['nll'] = self.cost(Y=targets,Y_hat=(probclass,probcluster))
                 rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
                 rval['entropy'] = rval['nll']/np.log(2).astype('float32')
         return rval
         
-        ###
-        # state, cls = state
-
     def cost(self, Y, Y_hat):
         """
         Y must be one-hot binary. Y_hat is a softmax estimate.
         of Y. Returns negative log probability of Y under the Y_hat
         distribution.
         """
-        y_hat, y_cls = Y_hat
+        y_probclass, y_probcluster = Y_hat
         #separated
         #have to change y as argmax
         #also make cls a shared variable and use that
@@ -426,46 +422,35 @@ class ClassBasedOutput(Softmax):
         
         CLS = self.array_clusters[T.cast(T.argmax(Y),'int32')]
 
-        assert hasattr(y_hat, 'owner')
-        owner = y_hat.owner
+        assert hasattr(y_probclass, 'owner')
+        owner = y_probclass.owner
         assert owner is not None
         op = owner.op
         if isinstance(op, Print):
           assert len(owner.inputs) == 1
-          y_hat, = owner.inputs
-          owner = y_hat.owner
+          y_probclass, = owner.inputs
+          owner = y_probclass.owner
           op = owner.op
         assert isinstance(op, T.nnet.Softmax)
 
-        #print 'own'
-        #print owner,op
-        z ,= owner.inputs
-        #print 'z:'
-        #print z
-        assert z.ndim == 2
+        z_class ,= owner.inputs
+        assert z_class.ndim == 2
 
-        assert hasattr(y_cls, 'owner')
-        owner = y_cls.owner
+        assert hasattr(y_probcluster, 'owner')
+        owner = y_probcluster.owner
         assert owner is not None
         op = owner.op
         if isinstance(op, Print):
             assert len(owner.inputs) == 1
-            y_cls, = owner.inputs
-            owner = y_cls.owner
+            y_probcluster, = owner.inputs
+            owner = y_probcluster.owner
             op = owner.op
         assert isinstance(op, T.nnet.Softmax)
-        z_cls ,= owner.inputs
-        #print 'z_cls:'
-        #print z_cls
-        assert z_cls.ndim == 2
+        z_cluster ,= owner.inputs
+        assert z_cluster.ndim == 2
 
-        # Y
-        #print z
-        z = z - z.max(axis=1).dimshuffle(0, 'x')
-        log_prob = z - T.log(T.exp(z).sum(axis=1).dimshuffle(0, 'x'))
-        #print log_prob
-        #print Y.ndim
-
+        z_class = z_class - z_class.max(axis=1).dimshuffle(0, 'x')
+        log_prob = z_class - T.log(T.exp(z_class).sum(axis=1).dimshuffle(0, 'x'))
         # we use sum and not mean because this is really one variable per row
         # Y = OneHotFormatter(self.n_classes).theano_expr(
         #                         T.addbroadcast(Y,0,1).dimshuffle(0).astype('uint32'))
@@ -473,8 +458,8 @@ class ClassBasedOutput(Softmax):
         assert log_prob_of.ndim == 1
 
         # cls
-        z_cls = z_cls - z_cls.max(axis=1).dimshuffle(0, 'x')
-        log_prob_cls = z_cls - T.log(T.exp(z_cls).sum(axis=1).dimshuffle(0, 'x'))
+        z_cluster = z_cluster - z_cluster.max(axis=1).dimshuffle(0, 'x')
+        log_prob_cls = z_cluster - T.log(T.exp(z_cluster).sum(axis=1).dimshuffle(0, 'x'))
 
         # CLS = OneHotFormatter(self.n_clusters).theano_expr(
         #                         T.addbroadcast(CLS, 1).dimshuffle(0).astype('uint32'))
@@ -489,16 +474,13 @@ class ClassBasedOutput(Softmax):
     def fprop(self, state_below,targets):
         #change model to add new variable which sends which indices of the data are here
         self.input_space.validate(state_below)        
-
-
         if self.needs_reformat:
             state_below = self.input_space.format_as(state_below, self.desired_space)
         for value in get_debug_values(state_below):
-            print 'getting debug values'
-            print value
-        #     if self.mlp.batch_size is not None and value.shape[0] != self.mlp.batch_size:
-        #         raise ValueError("state_below should have batch size "+str(self.dbm.batch_size)+" but has "+str(value.shape[0]))
+            if self.mlp.batch_size is not None and value.shape[0] != self.mlp.batch_size:
+                raise ValueError("state_below should have batch size "+str(self.dbm.batch_size)+" but has "+str(value.shape[0]))
         self.desired_space.validate(state_below)
+        
         assert state_below.ndim == 2
         if not hasattr(self, 'no_affine'):
             self.no_affine = False
@@ -511,24 +493,16 @@ class ClassBasedOutput(Softmax):
         #we get the cluster by doing hW_cluster + b_cluster
         probcluster = T.dot(state_below, self.W_cluster) + self.b_cluster
         probcluster = T.nnet.softmax(probcluster)
-        for value in get_debug_values(probcluster):
-            print 'val is'
-            print val
-
-        print 'type of state below is'
-        print state_below.type
-        print state_below.dtype
-        print state_below.ndim
-        self.cluster_targets = range(5)
-
+        
         #need the predicted clusters for this batch
         if targets is not None:
             batch_clusters = self.array_clusters[T.cast(T.argmax(targets).flatten(),'int32')]
-            Z = T.nnet.GroupDot(self.n_clusters)(state_below,
+            Z = T.nnet.GroupDot(self.n_clusters, gpu='gpu' in theano.config.device)(state_below,
                                                         self.W_class,
                                                         self.b_class,
                                                         T.cast(batch_clusters,'int32'))
         probclass = T.nnet.softmax(Z)
+        
         for value in get_debug_values(probclass):
              if self.mlp.batch_size is not None:
                 assert value.shape[0] == self.mlp.batch_size
