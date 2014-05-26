@@ -17,7 +17,6 @@ from pylearn2.sandbox.nlp.linear.matrixmul import MatrixMul
 from theano.compat.python2x import OrderedDict
 from pylearn2.utils import logger
 from pylearn2.format.target_format import OneHotFormatter
-from pylearn2.monitor import get_monitor_doc
 import numpy as np
 
 from pylearn2.utils import serial
@@ -143,7 +142,7 @@ class ProjectionLayer(Layer):
         assert W.name is not None
 
     @wraps(Layer.fprop)
-    def fprop(self, state_below,targets=None):
+    def fprop(self, state_below):
         z = self.transformer.project(state_below)
         return z
 
@@ -153,129 +152,8 @@ class ProjectionLayer(Layer):
         assert W.name is not None
         params = [W]
         return params
+        
 
-class Tanh(mlp.Tanh):
-    """
-    A layer that performs an affine transformation of its (vectorial)
-    input followed by a hyperbolic tangent elementwise nonlinearity.
-
-    Parameters
-    ----------
-    kwargs : dict
-        Keyword arguments to pass through to `Linear` class constructor.
-    """
-    def fprop(self, state_below,targets=None):
-
-        p = self._linear_part(state_below)
-        p = T.tanh(p)
-        return p
-
-class MLP(mlp.MLP):
-    
-    def fprop(self, state_below, targets,return_all=False):
-        if not hasattr(self, "input_space"):
-            raise AttributeError("Input space has not been provided.")
-
-        rval = self.layers[0].fprop(state_below,targets)
-        rlist = [rval]
-        for layer in self.layers[1:]:
-            rval = layer.fprop(rval,targets)
-            rlist.append(rval)
-
-        if return_all:
-            return rlist
-        return rval
-
-
-    def cost_from_X(self, data):
-        """
-        Computes self.cost, but takes data=(X, Y) rather than Y_hat as an
-        argument.
-
-        This is just a wrapper around self.cost that computes Y_hat by
-        calling Y_hat = self.fprop(X)
-
-        Parameters
-        ----------
-        data : WRITEME
-        """
-        self.cost_from_X_data_specs()[0].validate(data)
-        X, Y = data
-        Y_hat = self.fprop(X,Y)
-        return self.cost(Y, Y_hat)
-
-    def get_layer_monitoring_channels(self, state_below=None, state=None, targets=None):
-
-        rval = OrderedDict()
-        if state_below is not None:
-            state = state_below
-
-            for layer in self.layers:
-                # We don't go through all the inner layers recursively
-                print type(layer)
-                state = layer.fprop(state,targets)
-                args = [None, state]
-                if layer is self.layers[-1] and targets is not None:
-                    args.append(targets)
-                ch = layer.get_layer_monitoring_channels(*args)
-                if not isinstance(ch, OrderedDict):
-                    raise TypeError(str((type(ch), layer.layer_name)))
-                for key in ch:
-                    value = ch[key]
-                    doc = get_monitor_doc(value)
-                    if doc is None:
-                        doc = str(type(layer)) + \
-                            ".get_monitoring_channels_from_state did" + \
-                            " not provide any further documentation for" + \
-                            " this channel."
-                    doc = 'This channel came from a layer called "' + \
-                            layer.layer_name + '" of an MLP.\n' + doc
-                    value.__doc__ = doc
-                    rval[layer.layer_name+'_'+key] = value
-
-
-        elif state is not None:
-
-            for layer in self.layers:
-                if layer is self.layers[-1]:
-                    args = [None, state]
-                    if targets is not None:
-                        args.append(targets)
-                    ch = layer.get_layer_monitoring_channels(*args)
-                else:
-                    ch = layer.get_layer_monitoring_channels()
-                for key in ch:
-                    value = ch[key]
-                    doc = get_monitor_doc(value)
-                    if doc is None:
-                        doc = str(type(layer)) + \
-                            ".get_monitoring_channels did" + \
-                            " not provide any further documentation for" + \
-                            " this channel."
-                    doc = 'This channel came from a layer called "' + \
-                            layer.layer_name + '" of an MLP.\n' + doc
-                    value.__doc__ = doc
-                    rval[layer.layer_name+'_'+key] = value
-
-        else:
-            for layer in self.layers:
-                ch = layer.get_layer_monitoring_channels()
-                if not isinstance(ch, OrderedDict):
-                    raise TypeError(str((type(ch), layer.layer_name)))
-                for key in ch:
-                    value = ch[key]
-                    doc = get_monitor_doc(value)
-                    if doc is None:
-                        doc = str(type(layer)) + \
-                            ".get_monitoring_channels_from_state did" + \
-                            " not provide any further documentation for" + \
-                            " this channel."
-                    doc = 'This channel came from a layer called "' + \
-                            layer.layer_name + '" of an MLP.\n' + doc
-                    value.__doc__ = doc
-                    rval[layer.layer_name+'_'+key] = value
-
-        return rval
 
 
 class ClassBasedOutput(Softmax):
@@ -288,20 +166,17 @@ class ClassBasedOutput(Softmax):
         self.b_class = sharedX(np.zeros((self.n_clusters, self.n_classes)), name = 'softmax_b_class')
         self.b_cluster = sharedX( np.zeros((self.n_clusters)), name = 'softmax_b_clusters')
         
-        npz_clust = serial.load("${PYLEARN2_DATA_PATH}/PennTreebankCorpus/" + classclusterpath)        
-        array_clusters = npz_clust['wordwithclusters']
-       
-        #z = array_clusters[np.in1d(array_clusters[:,0], self._data[:,-1:]), 1]
-        #npz_data = serial.load("/u/huilgolr/data/PennTreebank/processed.npz")
-        #print npz_data['word_clusters'].shape
-        #self.classclusters=sharedX(npz_data['word_clusters'][:,1],'classclusters')
-        #self.cluster_targets = np.random.randint(0,n_clusters,size=(self.n_classes))
+        npz_data = serial.load("${PYLEARN2_DATA_PATH}/PennTreebankCorpus/" + classclusterpath)
+        self.classclusters=sharedX(npz_data['wordwithclusters'],'classclusters')
+
+        self.cluster_targets = np.random.randint(0,n_clusters,size=(self.n_classes))
         #cluster_targets is a nx1 array which tells which cluster the word
 
         keys = range(n_clusters)
-        self.clusters_scope = dict(zip(keys, np.bincount(array_clusters.astype(int))))
+        self.clusters_scope = dict(zip(keys, np.bincount(self.cluster_targets)))
+
         #self._group_dot = _group_dot
-        self.array_clusters = sharedX(array_clusters)
+
         
     def set_input_space(self, space):
         self.input_space = space
@@ -392,7 +267,7 @@ class ClassBasedOutput(Softmax):
 
                 for value in get_debug_values(state_below):
                     print 'value is'+ value
-                state=self.fprop (state_below,targets)
+                state=self.fprop (state_below)
             #print state
             state, cls = state
             mx = state.max(axis=1)
@@ -424,7 +299,7 @@ class ClassBasedOutput(Softmax):
         #CLS = self.classclusters[Y]
         #Y = self._group_dot.fprop(Y, Y_hat)
         
-        CLS = self.array_clusters[T.cast(T.argmax(Y),'int32')]
+        CLS = self.cluster_targets
 
         assert hasattr(y_hat, 'owner')
         owner = y_hat.owner
@@ -486,7 +361,7 @@ class ClassBasedOutput(Softmax):
         rval = log_prob_of.mean()        
         return - rval
 
-    def fprop(self, state_below,targets):
+    def fprop(self, state_below):
         #change model to add new variable which sends which indices of the data are here
         self.input_space.validate(state_below)        
 
@@ -522,12 +397,11 @@ class ClassBasedOutput(Softmax):
         self.cluster_targets = range(5)
 
         #need the predicted clusters for this batch
-        if targets is not None:
-            batch_clusters = self.array_clusters[T.cast(T.argmax(targets).flatten(),'int32')]
-            Z = T.nnet.GroupDot(self.n_clusters)(state_below,
-                                                        self.W_class,
-                                                        self.b_class,
-                                                        T.cast(batch_clusters,'int32'))
+            
+        Z = T.nnet.GroupDot(self.n_clusters)(state_below,
+                                                    self.W_class,
+                                                    self.b_class,
+                                        self.cluster_targets)
         probclass = T.nnet.softmax(Z)
         for value in get_debug_values(probclass):
              if self.mlp.batch_size is not None:

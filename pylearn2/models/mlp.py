@@ -634,6 +634,7 @@ class MLP(Layer):
 
             for layer in self.layers:
                 # We don't go through all the inner layers recursively
+                print type(layer)
                 state = layer.fprop(state)
                 args = [None, state]
                 if layer is self.layers[-1] and targets is not None:
