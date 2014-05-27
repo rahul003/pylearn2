@@ -419,7 +419,7 @@ class ClassBasedOutput(Softmax):
         #Y = self._group_dot.fprop(Y, Y_hat)
         
         CLS = self.array_clusters[T.cast(T.argmax(Y,axis=0),'int32')]
-
+        theano.printing.Print('value of cls')(CLS)
         assert hasattr(y_probclass, 'owner')
         owner = y_probclass.owner
         assert owner is not None
@@ -459,7 +459,7 @@ class ClassBasedOutput(Softmax):
         z_cluster = z_cluster - z_cluster.max(axis=1).dimshuffle(0, 'x')
         log_prob_cls = z_cluster - T.log(T.exp(z_cluster).sum(axis=1).dimshuffle(0, 'x'))
 
-        out = OneHotFormatter(self.n_clusters).theano_expr(CLS.astype('int32')).T
+        out = OneHotFormatter(self.n_clusters).theano_expr(CLS.astype('uint32'))
         #CLS = OneHotFormatter(self.n_clusters).theano_expr(
          #                        T.addbroadcast(CLS, 1).dimshuffle(0).astype('uint32'))
         log_prob_of_cls = (out * log_prob_cls).sum(axis=1)

@@ -22,7 +22,7 @@
                 dim: 256,
                 irange: 0.01
             }, !obj:pylearn2.sandbox.nlp.models.mlp.ClassBasedOutput {
-                n_clusters: 5,
+                n_clusters: 51,
                 layer_name: 'classbasedoutput',
                 irange: 0.01,
                 n_classes: 10000,
