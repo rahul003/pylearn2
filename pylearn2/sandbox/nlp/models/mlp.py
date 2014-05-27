@@ -415,12 +415,10 @@ class ClassBasedOutput(Softmax):
         #separated
         #have to change y as argmax
         #also make cls a shared variable and use that
-        #Y,
-        
-        #CLS = self.classclusters[Y]
+        #Y, clS = self.classclusters[Y]
         #Y = self._group_dot.fprop(Y, Y_hat)
         
-        CLS = self.array_clusters[T.cast(T.argmax(Y),'int32')]
+        CLS = self.array_clusters[T.cast(T.argmax(Y,axis=0),'int32')]
 
         assert hasattr(y_probclass, 'owner')
         owner = y_probclass.owner
@@ -461,9 +459,10 @@ class ClassBasedOutput(Softmax):
         z_cluster = z_cluster - z_cluster.max(axis=1).dimshuffle(0, 'x')
         log_prob_cls = z_cluster - T.log(T.exp(z_cluster).sum(axis=1).dimshuffle(0, 'x'))
 
-        # CLS = OneHotFormatter(self.n_clusters).theano_expr(
-        #                         T.addbroadcast(CLS, 1).dimshuffle(0).astype('uint32'))
-        log_prob_of_cls = (CLS * log_prob_cls).sum(axis=1)
+        out = OneHotFormatter(self.n_clusters).theano_expr(CLS.astype('int32')).T
+        #CLS = OneHotFormatter(self.n_clusters).theano_expr(
+         #                        T.addbroadcast(CLS, 1).dimshuffle(0).astype('uint32'))
+        log_prob_of_cls = (out * log_prob_cls).sum(axis=1)
         assert log_prob_of_cls.ndim == 1
 
         # p(w|history) = p(c|s) * p(w|c,s)
@@ -495,9 +494,12 @@ class ClassBasedOutput(Softmax):
         probcluster = T.nnet.softmax(probcluster)
         
         #need the predicted clusters for this batch
-        if targets is not None:
-            batch_clusters = self.array_clusters[T.cast(T.argmax(targets).flatten(),'int32')]
-            Z = T.nnet.GroupDot(self.n_clusters, gpu='gpu' in theano.config.device)(state_below,
+        #if targets is not None:
+
+
+        #check this line again
+        batch_clusters = self.array_clusters[T.cast(T.argmax(targets).flatten(),'int32')]
+        Z = T.nnet.GroupDot(self.n_clusters)(state_below,
                                                         self.W_class,
                                                         self.b_class,
                                                         T.cast(batch_clusters,'int32'))
