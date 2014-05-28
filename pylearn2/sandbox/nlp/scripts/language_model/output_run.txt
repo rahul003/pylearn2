@@ -370,4 +370,49 @@ Monitoring step:
         valid_tanh_row_norms_max: 1.66006958485
         valid_tanh_row_norms_mean: 0.416402131319
         valid_tanh_row_norms_min: 0.15494325757
+Time this epoch: 0:05:55.122603
+Monitoring step:
+        Epochs seen: 7
+        Batches seen: 65072
+        Examples seen: 6507081
+        learning_rate: 0.0999998599291
+        total_seconds_last_epoch: 457.671508789
+        training_seconds_this_epoch: 355.123687744
+        valid_classbasedoutput_class_col_norms_max: 1.08666324615
+        valid_classbasedoutput_class_col_norms_mean: 0.00241223094054
+        valid_classbasedoutput_class_col_norms_min: 8.48307718115e-06
+        valid_classbasedoutput_class_row_norms_max: 3.5777182579
+        valid_classbasedoutput_class_row_norms_mean: 0.00241001159884
+        valid_classbasedoutput_class_row_norms_min: 5.10873746862e-07
+        valid_classbasedoutput_col_norms_max: 2.80933332443
+        valid_classbasedoutput_col_norms_mean: 1.20192503929
+        valid_classbasedoutput_col_norms_min: 0.434442996979
+        valid_classbasedoutput_entropy: 17.1311206818
+        valid_classbasedoutput_max_max_class: 0.266432911158
+        valid_classbasedoutput_mean_max_class: 0.00276342965662
+        valid_classbasedoutput_min_max_class: 0.000100000776001
+        valid_classbasedoutput_nll: 11.8743782043
+        valid_classbasedoutput_perplexity: 1.464e+05
+        valid_classbasedoutput_row_norms_max: 2.47200846672
+        valid_classbasedoutput_row_norms_mean: 0.483130633831
+        valid_classbasedoutput_row_norms_min: 0.183767154813
+        valid_objective: 11.8743782043
+        valid_tanh_col_norms_max: 3.52882242203
+        valid_tanh_col_norms_mean: 0.859839200974
+        valid_tanh_col_norms_min: 0.383072733879
+        valid_tanh_max_x_max_u: 0.996577441692
+        valid_tanh_max_x_mean_u: 0.453559100628
+        valid_tanh_max_x_min_u: -0.142314583063
+        valid_tanh_mean_x_max_u: 0.984265863895
+        valid_tanh_mean_x_mean_u: 0.0154788168147
+        valid_tanh_mean_x_min_u: -0.782475292683
+        valid_tanh_min_x_max_u: 0.978901922703
+        valid_tanh_min_x_mean_u: -0.421517312527
+        valid_tanh_min_x_min_u: -0.99422699213
+        valid_tanh_range_x_max_u: 1.75077235699
+        valid_tanh_range_x_mean_u: 0.875076115131
+        valid_tanh_range_x_min_u: 0.0105402301997
+        valid_tanh_row_norms_max: 1.85283768177
+        valid_tanh_row_norms_mean: 0.463759750128
+        valid_tanh_row_norms_min: 0.171451151371
 

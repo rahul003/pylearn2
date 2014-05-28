@@ -61,7 +61,6 @@ class Softmax(mlp.Softmax):
 
         return rval
 
-
 class ProjectionLayer(Layer):
     """
     This layer can be used to project discrete labels into a continous space
@@ -278,7 +277,6 @@ class MLP(mlp.MLP):
 
 
 class ClassBasedOutput(Softmax):
-    # TODO cleanup target, class name mess, it's confusing
     def __init__(self, n_clusters = None, classclusterpath= None, **kwargs):
         super(ClassBasedOutput, self).__init__(**kwargs)
         self.n_clusters = n_clusters
@@ -289,14 +287,6 @@ class ClassBasedOutput(Softmax):
         
         npz_clust = serial.load(classclusterpath)        
         array_clusters = npz_clust['wordwithclusters']
-       
-        #z = array_clusters[np.in1d(array_clusters[:,0], self._data[:,-1:]), 1]
-        #npz_data = serial.load("/u/huilgolr/data/PennTreebank/processed.npz")
-        #print npz_data['word_clusters'].shape
-        #self.classclusters=sharedX(npz_data['word_clusters'][:,1],'classclusters')
-        #self.cluster_targets = np.random.randint(0,n_clusters,size=(self.n_classes))
-        #cluster_targets is a nx1 array which tells which cluster the word
-
         keys = range(n_clusters)
         self.clusters_scope = dict(zip(keys, np.bincount(array_clusters.astype(int))))
         #self._group_dot = _group_dot
@@ -339,9 +329,8 @@ class ClassBasedOutput(Softmax):
                 raise NotImplementedError()
 
             # set the extra dummy weights to 0
+            #changed
             for key in self.clusters_scope.keys():
-		#print key
-                #should probably be reverse
                 W_class[int(key), :, self.clusters_scope[key]:] = 0.
 
             self.W_class = sharedX(W_class,  'softmax_W_class' )
@@ -412,10 +401,6 @@ class ClassBasedOutput(Softmax):
         distribution.
         """
         y_probclass, y_probcluster = Y_hat
-        #separated
-        #have to change y as argmax
-        #also make cls a shared variable and use that
-        #Y, clS = self.classclusters[Y]
         #Y = self._group_dot.fprop(Y, Y_hat)
         
         CLS = self.array_clusters[T.cast(T.argmax(Y,axis=1),'int32')]
@@ -455,7 +440,7 @@ class ClassBasedOutput(Softmax):
         log_prob_of = (Y * log_prob).sum(axis=1)
         assert log_prob_of.ndim == 1
 
-        # cls
+        # cluster
         z_cluster = z_cluster - z_cluster.max(axis=1).dimshuffle(0, 'x')
         log_prob_cls = z_cluster - T.log(T.exp(z_cluster).sum(axis=1).dimshuffle(0, 'x'))
 
@@ -471,7 +456,6 @@ class ClassBasedOutput(Softmax):
         return - rval
 
     def fprop(self, state_below,targets):
-        #change model to add new variable which sends which indices of the data are here
         self.input_space.validate(state_below)        
         if self.needs_reformat:
             state_below = self.input_space.format_as(state_below, self.desired_space)
@@ -492,9 +476,6 @@ class ClassBasedOutput(Softmax):
         #we get the cluster by doing hW_cluster + b_cluster
         probcluster = T.dot(state_below, self.W_cluster) + self.b_cluster
         probcluster = T.nnet.softmax(probcluster)
-        
-        #need the predicted clusters for this batch
-        #if targets is not None:
 
 
         #check this line again
