@@ -210,7 +210,7 @@ class MLP(mlp.MLP):
 
             for layer in self.layers:
                 # We don't go through all the inner layers recursively
-                print type(layer)
+                #print type(layer)
                 state = layer.fprop(state,targets)
                 args = [None, state]
                 if layer is self.layers[-1] and targets is not None:
@@ -378,8 +378,8 @@ class ClassBasedOutput(Softmax):
         if (state_below is not None) or (state is not None):
             if state is None:
 
-                for value in get_debug_values(state_below):
-                    print 'value is'+ value
+                #for value in get_debug_values(state_below):
+                    #print 'value is'+ value
                 state=self.fprop (state_below,targets)
             #print state
             probclass, probcluster = state
@@ -404,7 +404,7 @@ class ClassBasedOutput(Softmax):
         #Y = self._group_dot.fprop(Y, Y_hat)
         
         CLS = self.array_clusters[T.cast(T.argmax(Y,axis=1),'int32')]
-        theano.printing.Print('value of cls')(CLS)
+        #theano.printing.Print('value of cls')(CLS)
         assert hasattr(y_probclass, 'owner')
         owner = y_probclass.owner
         assert owner is not None
