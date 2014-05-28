@@ -331,7 +331,7 @@ class ClassBasedOutput(Softmax):
             # set the extra dummy weights to 0
             #changed
             for key in self.clusters_scope.keys():
-                W_class[int(key), :, self.clusters_scope[key]:] = 0.
+                W_class[int(key), :, :self.clusters_scope[key]] = 0.
 
             self.W_class = sharedX(W_class,  'softmax_W_class' )
             self.W_cluster = sharedX(W_cluster,  'softmax_W_cluster' )
