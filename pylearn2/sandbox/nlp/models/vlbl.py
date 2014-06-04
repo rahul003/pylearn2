@@ -98,11 +98,11 @@ class vLBL(Model):
         X, Y = data
         theano_rng = RandomStreams(seed = self.rng.randint(2 ** 15))
     
-        s = self.score(X,Y)
+        s = self.score(X,Y,2)
         p_w_given_h = T.nnet.softmax(s)
         
-        #[T.arange(Y.shape[0]), Y]
-        return -T.mean(T.log2(p_w_given_h))
+        #
+        return -T.mean(T.log2(p_w_given_h))[T.arange(Y.shape[0]), Y]
         
         #noise = theano_rng.random_integers(size = (X.shape[0], self.k,), low=0, high = self.dict_size - 1)
 
