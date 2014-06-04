@@ -1,0 +1,32 @@
+# This YAML file is an example of a simple language model which can be trained
+# on the Penn Treebank data. It uses a projection layer to embed words in a
+# 128-dimensional space.
+#
+
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
+        which_set: 'train',
+        context_len: &context_len 6
+    },
+    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBL {
+        dict_size: 10000,
+        dim: 100,
+        context_length: *context_len,
+        k: 50
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        batch_size: 100,
+        learning_rate: .55,
+        monitoring_dataset: {
+            'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
+                which_set: 'valid',
+                context_len: *context_len
+            }
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: 'valid_classbasedoutput_nll',
+            prop_decrease: 0.,
+            N: 10
+        },
+    },
+}
