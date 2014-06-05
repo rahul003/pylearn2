@@ -118,8 +118,6 @@ class vLBL(Model):
         return Default()
 
     def get_monitoring_channels(self, data):
-        if self.no_affine:
-            return OrderedDict()
 
         W = self.W
         b = self.b
@@ -132,10 +130,10 @@ class vLBL(Model):
         row_norms_W = T.sqrt(sq_W.sum(axis=1))
         col_norms_W = T.sqrt(sq_W.sum(axis=0))
 
-        row_norms_b = T.sqrt(sq_b.sum(axis=1))
+        
         col_norms_b = T.sqrt(sq_b.sum(axis=0))
 
-        row_norms_c = T.sqrt(sq_c.sum(axis=1))
+        
         col_norms_c = T.sqrt(sq_c.sum(axis=0))
 
         rval = OrderedDict([
@@ -146,16 +144,11 @@ class vLBL(Model):
                             ('W_col_norms_mean' , col_norms_W.mean()),
                             ('W_col_norms_max'  , col_norms_W.max()),
                             
-                            ('b_row_norms_min'  , row_norms_b.min()),
-                            ('b_row_norms_mean' , row_norms_b.mean()),
-                            ('b_row_norms_max'  , row_norms_b.max()),
+                            
                             ('b_col_norms_min'  , col_norms_b.min()),
                             ('b_col_norms_mean' , col_norms_b.mean()),
                             ('b_col_norms_max'  , col_norms_b.max()),
 
-                            ('c_row_norms_min'  , row_norms_c.min()),
-                            ('c_row_norms_mean' , row_norms_c.mean()),
-                            ('c_row_norms_max'  , row_norms_c.max()),
                             ('c_col_norms_min'  , col_norms_c.min()),
                             ('c_col_norms_mean' , col_norms_c.mean()),
                             ('c_col_norms_max'  , col_norms_c.max()),
@@ -163,7 +156,7 @@ class vLBL(Model):
 
         rval['nll'] = self.cost_from_X(data)
         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
-        
+
         # if (state_below is not None) or (state is not None):
         #     if state is None:
 
