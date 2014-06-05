@@ -44,7 +44,7 @@ class vLBL(Model):
         self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
         self.output_space = IndexSpace(dim = 1, max_labels = dict_size)
 
-        self.allY = sharedX(np.arange(dict_size))
+        self.allY = T.as_tensor_variable(np.arange(dict_size,dtype=np.int64).reshape(dict_size,1))
 
 
     def get_params(self):
@@ -76,10 +76,23 @@ class vLBL(Model):
         X = self.projector.project(X)
         q_h = self.fprop(X)
 
-        target_w = self.projector.project(Y)
+        q_w = self.projector.project(Y)
+        # print Y.dtype
+        # print self.allY.dtype
+        # print Y.type
+        # print type(Y)
+        # print type(self.allY)
         all_q_w = self.projector.project(self.allY)
-        #10,5
+        
+        swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
+        sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
+        
+        swh = T.exp(swh)
+        sallwh = T.exp(sallwh).sum(axis=1)
 
+        return swh,sallwh
+        #10,5
+    
         #dim is n_examples x n_dim_word_representation
 
         # if ndim == 1: 
@@ -91,9 +104,7 @@ class vLBL(Model):
         #     #q_w = self.projector.project(Y).reshape((Y.shape[0], Y.shape[1], self.dim)).dimshuffle(1, 0, 2)
         #     #rval = (q_h.dimshuffle('x', 0, 1) + q_w).sum(axis=1) + self.b[Y].flatten()
         #     rval = (q_h.dimshuffle('x', 0, 1) * q_w).sum(axis=2) + self.b[Y].flatten()
-        
-
-        return rval
+        #return rval
 
     # def delta(self, data, ndim = 1):
 
@@ -110,11 +121,13 @@ class vLBL(Model):
         X, Y = data
         theano_rng = RandomStreams(seed = self.rng.randint(2 ** 15))
 
-        s = self.score(X,Y)
-        #this will be a 15x1
-        p_w_given_h = T.nnet.softmax(s)
-        #size is 1x15
-        return -T.mean(T.log2(p_w_given_h)[T.arange(Y.shape[0]), Y])
+        s,denom = self.score(X,Y)
+        
+        p_w_given_h = s/denom
+        #15x1
+        
+        #T.arange(Y.shape[0]), Y])
+        return -T.mean(T.log2(p_w_given_h))
         
         #noise = theano_rng.random_integers(size = (X.shape[0], self.k,), low=0, high = self.dict_size - 1)
 
