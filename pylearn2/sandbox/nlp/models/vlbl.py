@@ -22,7 +22,8 @@ from pylearn2.sandbox.nlp.models.lblcost import Default
 class vLBL(Model):
 
     def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
-        #dim is like word_dim
+        #dim is the dimensions of the final representation of each word
+
         super(vLBL, self).__init__()
         rng = np.random.RandomState(seed)
         self.rng = rng
@@ -31,7 +32,7 @@ class vLBL(Model):
         self.dim = dim
         self.dict_size = dict_size
         C = rng.randn(dim, context_length)
-        self.C = sharedX(C)
+        self.C = sharedX(C) 
 
         #right now i think it is both in same prepresentation. meaning R=Q=W
         W = rng.uniform(-irange, irange, (dict_size, dim))
@@ -42,6 +43,9 @@ class vLBL(Model):
 
         self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
         self.output_space = IndexSpace(dim = 1, max_labels = dict_size)
+
+        self.allY = sharedX(np.arange(dict_size))
+
 
     def get_params(self):
         #get W from projector
@@ -58,30 +62,38 @@ class vLBL(Model):
         state_below = state_below.reshape((state_below.shape[0], self.dim, self.context_length))
         rval = self.C.dimshuffle('x', 0, 1) * state_below
         rval = rval.sum(axis=2)
-
         return rval
 
 
-    def score(self, X, Y, ndim = 1):
+    def score(self, X, Y):
         """
         So takes X which is context.
         gets r_w which project returns
         gets q_hat = from calculating fprop which gives us the predicted representation.
         Then finds score by doing dot product with the target representation
-
         """
 
         X = self.projector.project(X)
         q_h = self.fprop(X)
-        if ndim == 1:
-            q_w = self.projector.project(Y).reshape((Y.shape[0], self.dim))
-            rval = (q_w + q_h).sum(axis=1) + self.b[Y].flatten()
-        elif ndim == 2:
-            q_w = self.projector.project(Y).reshape((Y.shape[0], Y.shape[1], self.dim)).dimshuffle(1, 0, 2)
-            rval = (q_h.dimshuffle('x', 0, 1) + q_w).sum(axis=1) #+ self.b[Y].flatten()
+
+        target_w = self.projector.project(Y)
+        all_q_w = self.projector.project(self.allY)
+        #10,5
+
+        #dim is n_examples x n_dim_word_representation
+
+        # if ndim == 1: 
+        #     #for vector this is the case
+        #         #.reshape((Y.shape[0], self.dim))
+        #     q_w = self.projector.project(Y)
+        #     rval = (q_w * q_h).sum(axis=1) + self.b[Y].flatten()
+        # elif ndim == 2:
+        #     #q_w = self.projector.project(Y).reshape((Y.shape[0], Y.shape[1], self.dim)).dimshuffle(1, 0, 2)
+        #     #rval = (q_h.dimshuffle('x', 0, 1) + q_w).sum(axis=1) + self.b[Y].flatten()
+        #     rval = (q_h.dimshuffle('x', 0, 1) * q_w).sum(axis=2) + self.b[Y].flatten()
+        
 
         return rval
-
 
     # def delta(self, data, ndim = 1):
 
@@ -97,12 +109,12 @@ class vLBL(Model):
     def cost_from_X(self, data):
         X, Y = data
         theano_rng = RandomStreams(seed = self.rng.randint(2 ** 15))
-    
-        s = self.score(X,Y,2)
+
+        s = self.score(X,Y)
+        #this will be a 15x1
         p_w_given_h = T.nnet.softmax(s)
-        
-        #
-        return -T.mean(T.log2(p_w_given_h))[T.arange(Y.shape[0]), Y]
+        #size is 1x15
+        return -T.mean(T.log2(p_w_given_h)[T.arange(Y.shape[0]), Y])
         
         #noise = theano_rng.random_integers(size = (X.shape[0], self.k,), low=0, high = self.dict_size - 1)
 

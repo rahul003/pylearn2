@@ -62,8 +62,9 @@ class PennTreebank(DenseDesignMatrix):
             X_labels=10000, y_labels=10000
         )
 
+        print which_set
         
-        
+        print self._data[:,-1:].shape
         if shuffle:
             warnings.warn("Note that the PennTreebank samples are only "
                           "shuffled when the iterator method is used to "
