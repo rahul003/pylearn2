@@ -118,7 +118,8 @@ class vLBL(Model):
         return Default()
 
     def get_monitoring_channels(self, data):
-
+        #if(data is None):
+          #  return
         W = self.W
         b = self.b
         C = self.C
@@ -154,8 +155,8 @@ class vLBL(Model):
                             ('c_col_norms_max'  , col_norms_c.max()),
                             ])
 
-        rval['nll'] = self.cost_from_X(data)
-        rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
+        #rval['nll'] = self.cost_from_X(data)
+        #rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
 
         # if (state_below is not None) or (state is not None):
         #     if state is None:
