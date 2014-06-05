@@ -24,7 +24,7 @@
             }
         },
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
-            channel_name: 'valid_classbasedoutput_nll',
+            channel_name: 'valid_nll',
             prop_decrease: 0.,
             N: 10
         },

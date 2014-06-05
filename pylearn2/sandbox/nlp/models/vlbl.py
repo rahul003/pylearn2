@@ -38,7 +38,7 @@ class vLBL(Model):
         W = rng.uniform(-irange, irange, (dict_size, dim))
         W = sharedX(W,name='W')
         self.projector = MatrixMul(W)
-
+        self.W = W
         self.b = sharedX(np.zeros((dict_size,)), name = 'vLBL_b')
 
         self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
@@ -116,6 +116,74 @@ class vLBL(Model):
 
     def get_default_cost(self):
         return Default()
+
+    def get_monitoring_channels(self, data):
+        if self.no_affine:
+            return OrderedDict()
+
+        W = self.W
+        b = self.b
+        C = self.C
+
+        sq_W = T.sqr(W)
+        sq_b = T.sqr(b)
+        sq_c = T.sqr(C)
+
+        row_norms_W = T.sqrt(sq_W.sum(axis=1))
+        col_norms_W = T.sqrt(sq_W.sum(axis=0))
+
+        row_norms_b = T.sqrt(sq_b.sum(axis=1))
+        col_norms_b = T.sqrt(sq_b.sum(axis=0))
+
+        row_norms_c = T.sqrt(sq_c.sum(axis=1))
+        col_norms_c = T.sqrt(sq_c.sum(axis=0))
+
+        rval = OrderedDict([
+                            ('W_row_norms_min'  , row_norms_W.min()),
+                            ('W_row_norms_mean' , row_norms_W.mean()),
+                            ('W_row_norms_max'  , row_norms_W.max()),
+                            ('W_col_norms_min'  , col_norms_W.min()),
+                            ('W_col_norms_mean' , col_norms_W.mean()),
+                            ('W_col_norms_max'  , col_norms_W.max()),
+                            
+                            ('b_row_norms_min'  , row_norms_b.min()),
+                            ('b_row_norms_mean' , row_norms_b.mean()),
+                            ('b_row_norms_max'  , row_norms_b.max()),
+                            ('b_col_norms_min'  , col_norms_b.min()),
+                            ('b_col_norms_mean' , col_norms_b.mean()),
+                            ('b_col_norms_max'  , col_norms_b.max()),
+
+                            ('c_row_norms_min'  , row_norms_c.min()),
+                            ('c_row_norms_mean' , row_norms_c.mean()),
+                            ('c_row_norms_max'  , row_norms_c.max()),
+                            ('c_col_norms_min'  , col_norms_c.min()),
+                            ('c_col_norms_mean' , col_norms_c.mean()),
+                            ('c_col_norms_max'  , col_norms_c.max()),
+                            ])
+
+        rval['nll'] = self.cost_from_X(data)
+        rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
+        
+        # if (state_below is not None) or (state is not None):
+        #     if state is None:
+
+        #         #for value in get_debug_values(state_below):
+        #             #print 'value is'+ value
+        #         state=self.fprop (state_below,targets)
+        #     #print state
+        #     probclass, probcluster = state
+        #     mx = probclass.max(axis=1)
+        #     rval.update(OrderedDict([('mean_max_class',mx.mean()),
+        #                              ('max_max_class' , mx.max()),
+        #                              ('min_max_class' , mx.min())
+        #                             ]))
+        #     if targets is not None:
+        #         rval['nll'] = self.cost(Y=targets,Y_hat=(probclass,probcluster))
+        #         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
+        #         rval['entropy'] = rval['nll']/np.log(2).astype('float32')
+        return rval
+        
+
 
     def cost_from_X(self, data):
         X, Y = data
