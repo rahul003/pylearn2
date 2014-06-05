@@ -35,10 +35,17 @@ class vLBL(Model):
         self.C = sharedX(C) 
 
         #right now i think it is both in same prepresentation. meaning R=Q=W
-        W = rng.uniform(-irange, irange, (dict_size, dim))
-        W = sharedX(W,name='W')
-        self.projector = MatrixMul(W)
-        self.W = W
+        W_context = rng.uniform(-irange, irange, (dict_size, dim))
+        W_context = sharedX(W_context,name='W_context')
+        W_target = rng.uniform(-irange, irange, (dict_size, dim))
+        W_target = sharedX(W_target,name='W_target')
+        self.projector_context = MatrixMul(W_context)
+        self.projector_target = MatrixMul(W_target)
+        
+        self.W_context = W_context
+        self.target = W_target
+
+
         self.b = sharedX(np.zeros((dict_size,)), name = 'vLBL_b')
 
         self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
@@ -49,8 +56,9 @@ class vLBL(Model):
 
     def get_params(self):
         #get W from projector
-        rval = self.projector.get_params()
-        #add C, b
+        rval1 = self.projector_context.get_params()
+        rval2 = self.projector_target.get_params()
+                #add C, b
         rval.extend([self.C, self.b])
         return rval
 
@@ -73,16 +81,16 @@ class vLBL(Model):
         Then finds score by doing dot product with the target representation
         """
 
-        X = self.projector.project(X)
+        X = self.projector_context.project(X)
         q_h = self.fprop(X)
 
-        q_w = self.projector.project(Y)
+        q_w = self.projector_target.project(Y)
         # print Y.dtype
         # print self.allY.dtype
         # print Y.type
         # print type(Y)
         # print type(self.allY)
-        all_q_w = self.projector.project(self.allY)
+        all_q_w = self.projector_target.project(self.allY)
         
         swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
         sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
