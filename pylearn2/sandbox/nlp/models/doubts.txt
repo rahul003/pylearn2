@@ -1,0 +1,5 @@
+h
+Note that in the above equation we used sθ (w, h) in place of log Pθ (w), ignoring the normalization
+term, because we are working with an unnormalized model. We can do this because the NCE
+objective encourages the model to be approximately normalized and recovers a perfectly normalized
+model if the model class contains the data distribution [6].

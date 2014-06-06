@@ -3,6 +3,8 @@ import pylearn2
 import numpy as np
 from pylearn2.utils import sharedX
 import theano.tensor as T
+from theano.tensor.shared_randomstreams import RandomStreams
+
 def project(w, x):
         """
         Takes a sequence of integers and projects (embeds) these labels
@@ -16,8 +18,8 @@ def project(w, x):
             a batch) which will be projected
         """
 
-        assert 'int' in x.dtype
-        print x.ndim
+        #assert 'int' in x.dtype
+        #print x.ndim
 
         if x.ndim == 2:
             shape = (x.shape[0], x.shape[1] * w.shape[1])
@@ -76,6 +78,8 @@ print esallwh.eval().shape
 print eswh.eval().shape
 
 prob = eswh/esallwh
+
+theano_rng = RandomStreams(seed = np.random.randint(2 ** 15))
 
 #qhat dim  is 15,5
 

@@ -1,0 +1,15 @@
+- we have to remove normalizing step.
+Then probability of w given h will simply be score(w,h)
+
+- to do this, we create an auxiliary binary classification problem, treating training data as positive examples and samples from noise distribution Pn(w) as negative examples. 
+
+- any noise distrbution, which is
+	- easy to sample from and compute probabilites under
+	- does not assign zero prob to any word
+ex: global unigram distribution
+
+assume noise samples are k times more frequent than data
+then 
+
+probability of sample coming from data is 
+	P(D=1 | w, theta, h) =

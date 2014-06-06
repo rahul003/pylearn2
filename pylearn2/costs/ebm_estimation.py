@@ -49,6 +49,11 @@ class NCE(DefaultDataSpecsMixin, Cost):
     noise_per_clean : WRITEME
         Number of noisy examples to generate for each clean example given
     """
+    def __init__(self, noise, noise_per_clean):
+        self.noise = noise
+        assert isinstance(noise_per_clean, py_integer_types)
+        self.noise_per_clean = noise_per_clean
+
     def h(self, X, model):
         """
         .. todo::
@@ -110,11 +115,7 @@ class NCE(DefaultDataSpecsMixin, Cost):
 
         return rval
 
-    def __init__(self, noise, noise_per_clean):
-        self.noise = noise
-
-        assert isinstance(noise_per_clean, py_integer_types)
-        self.noise_per_clean = noise_per_clean
+    
 
 
 class SM(DefaultDataSpecsMixin, Cost):
