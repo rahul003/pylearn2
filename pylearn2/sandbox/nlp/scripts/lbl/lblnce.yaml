@@ -23,6 +23,9 @@
                 context_len: *context_len
             },
         },
+        cost: !obj:pylearn2.sandbox.nlp.models.vlbl.CostNCE {
+                samples: 15
+            },
 
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
             channel_name: 'valid_perplexity',

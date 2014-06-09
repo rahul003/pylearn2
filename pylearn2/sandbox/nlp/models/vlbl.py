@@ -17,7 +17,7 @@ from pylearn2.models.model import Model
 from pylearn2.sandbox.nlp.models.lblcost import Default
 #import ipdb
 from pylearn2.space import CompositeSpace
-
+from pylearn2.costs.cost import Cost
 
 class vLBL(Model):
 
@@ -33,7 +33,6 @@ class vLBL(Model):
         C = rng.randn(dim, context_length)
         self.C = sharedX(C) 
 
-        #right now i think it is both in same prepresentation. meaning R=Q=W
         W_context = rng.uniform(-irange, irange, (dict_size, dim))
         W_context = sharedX(W_context,name='W_context')
         W_target = rng.uniform(-irange, irange, (dict_size, dim))
@@ -43,6 +42,8 @@ class vLBL(Model):
         
         self.W_context = W_context
         self.W_target = W_target
+
+        self.W_target = W_context
 
         self.b = sharedX(np.zeros((dict_size,)), name = 'vLBL_b')
 
@@ -94,9 +95,6 @@ class vLBL(Model):
         #return s, sallwh
         return sallwh
 
-
-
-        
         #10,5
 
         # if ndim == 1: 
@@ -104,11 +102,12 @@ class vLBL(Model):
         #         #.reshape((Y.shape[0], self.dim))
         #     q_w = self.projector.project(Y)
         #     rval = (q_w * q_h).sum(axis=1) + self.b[Y].flatten()
-        # elif ndim == 2:
+        # elif ndim == 2: 
         #     #q_w = self.projector.project(Y).reshape((Y.shape[0], Y.shape[1], self.dim)).dimshuffle(1, 0, 2)
         #     #rval = (q_h.dimshuffle('x', 0, 1) + q_w).sum(axis=1) + self.b[Y].flatten()
         #     rval = (q_h.dimshuffle('x', 0, 1) * q_w).sum(axis=2) + self.b[Y].flatten()
         #return rval
+
 
     def get_default_cost(self):
         return Default()
@@ -242,15 +241,31 @@ class vLBLNCE(vLBL):
     def prob_data_given_word_theta(self,delta_rval):
         return T.nnet.sigmoid(delta_rval)
 
-    def cost_from_X(self,data):
+    # def cost_from_X(self,data):
        
-        delta_rval = self.delta(data)
-        prob = self.prob_data_given_word_theta(delta_rval)
-        logprob = T.log(prob)
-        logprobnoise = T.log(1-prob) 
+    #     delta_rval = self.delta(data)
+    #     prob = self.prob_data_given_word_theta(delta_rval)
+    #     logprob = T.log(prob)
+    #     logprobnoise = T.log(1-prob) 
         
-        return -(T.mean(logprob)+T.mean(logprobnoise))
-        #return -T.mean(delta_rv)
-        #expectation over data of log prob_data_given_word_theta
-        # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
+    #     return -(T.mean(logprob)+T.mean(logprobnoise))
+    #     #return -T.mean(delta_rv)
+    #     #expectation over data of log prob_data_given_word_theta
+    #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
         
+class CostNCE(Cost):
+    def __init__(self,samples):
+        #assert isinstance (samples, py_integer_types)
+        self.noise_per_clean = samples
+        self.random_stream = RandomStreams(seed=1)
+    def expr(self,model,data):
+        return None
+
+    def get_data_specs(self, model):
+        return (model.get_input_space(), model.get_input_source())
+
+    def get_gradients(self, model, data, **kwargs):
+        params = model.get_params()
+
+
+
