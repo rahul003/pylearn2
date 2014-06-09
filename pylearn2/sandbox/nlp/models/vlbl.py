@@ -32,7 +32,7 @@ class vLBL(Model):
         self.dim = dim
         self.dict_size = dict_size
 
-        C_values = np.asarray(rng.normal(0, math.sqrt(0.1),
+        C_values = np.asarray(rng.normal(0, math.sqrt(irange),
                                          size=(dim,context_length)),
                               dtype=theano.config.floatX)
         self.C = theano.shared(value=C_values, name='C', borrow=True)
@@ -49,10 +49,9 @@ class vLBL(Model):
 
         self.W_target = W_context
 
-        b_values = np.asarray(rng.normal(0, math.sqrt(0.1), size=(dict_size,)),
+        b_values = np.asarray(rng.normal(0, math.sqrt(irange), size=(dict_size,)),
                               dtype=theano.config.floatX)
         self.b = theano.shared(value=b_values, name='b', borrow=True)
-
 
         self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
         self.output_space = IndexSpace(dim = 1, max_labels = dict_size)
@@ -191,10 +190,9 @@ class vLBL(Model):
         s = self.score(X,Y)
         p_w_given_h = T.nnet.softmax(s)
         
-
         #15x1
         #return -T.mean(T.log(prob))
-        return -T.mean(T.log2(p_w_given_h)[T.arange(Y.shape[0]), Y])
+        return -T.mean(T.diag(T.log2(p_w_given_h)[T.arange(Y.shape[0]), Y]))
 
 class vLBLNCE(vLBL):
     
@@ -238,19 +236,21 @@ class vLBLNCE(vLBL):
     #     #return -T.mean(delta_rv)
     #     #expectation over data of log prob_data_given_word_theta
     #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
-    def delta(self, data, ndim = 1,noise=None):
+    def delta(self, data,noise=None):
         X, Y = data
         if noise is None:
             p_n = 1. / self.dict_size
             de = self.score(X,Y)
             de = de - T.log(self.k*p_n)
+            return de
         else:
             p_n = 1. / self.dict_size
             s = self.score(X,noise,True)
             #this de is 15x3. score for each of the noise sample
             de = s - T.log(self.k*p_n)
+            return s,de
         #this is only for uniform(?)
-        return s,de
+
 
 class CostNCE(Cost):
     def __init__(self,samples):
@@ -262,7 +262,13 @@ class CostNCE(Cost):
         return None
 
     def get_data_specs(self, model):
-        return (model.get_input_space(), model.get_input_source())
+        
+        space = CompositeSpace((model.get_input_space(),
+                                model.get_output_space()))
+        source = (model.get_input_source(), model.get_target_source())
+        return (space, source)
+        #return (model.get_input_space(), model.get_input_source())
+
 
     def get_gradients(self, model, data, **kwargs):
         params = model.get_params()
@@ -277,13 +283,16 @@ class CostNCE(Cost):
         score_noise,delta_noise = model.delta(data,noise)
         #this is 15x3
         to_sum = T.nnet.sigmoid(delta_noise)
-        to_sum = to_sum * theano.gradients.jacobian(T.log(T.exp(score_noise)))
+        to_sum = to_sum * T.grad(T.log(T.exp(score_noise)),params)
         noise_part = T.mean(to_sum)
 
         delta_y = model.delta(data)
         prob = T.nnet.sigmoid(delta_y)
         phw = T.exp(model.score(X,Y))
-        grad = (1-prob)(theano.gradients.jacobian(phw,params))- noise_part
+        
+        grads = (1-prob)(theano.gradient.jacobian(phw,params))- noise_part
 
-
+        gradients = OrderedDict(izip(params, grads))
+        updates = OrderedDict()
+        return gradients, updates
 
