@@ -15,8 +15,8 @@
         k: 50
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
-        batch_size: 1000,
-        learning_rate: .34,
+        batch_size: 100,
+        learning_rate: .6,
         monitoring_dataset: {
             'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
                 which_set: 'valid',

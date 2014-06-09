@@ -84,23 +84,20 @@ class vLBL(Model):
         q_h = self.fprop(X)
 
         q_w = self.projector_target.project(Y)
-        # print Y.dtype
-        # print self.allY.dtype
-        # print Y.type
-        # print type(Y)
-        # print type(self.allY)
         all_q_w = self.projector_target.project(self.allY)
         
-        swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
+        #swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
         sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
-        
-        swh = T.exp(swh)
-        sallwh = T.exp(sallwh).sum(axis=1)
+        #swh = T.exp(swh)
+        #sallwh = T.exp(sallwh).sum(axis=1)
 
-        return swh,sallwh
+        #return s, sallwh
+        return sallwh
+
+
+
+        
         #10,5
-    
-        #dim is n_examples x n_dim_word_representation
 
         # if ndim == 1: 
         #     #for vector this is the case
@@ -169,7 +166,6 @@ class vLBL(Model):
                             ('W_target_col_norms_mean' , col_norms_W_target.mean()),
                             ('W_target_col_norms_max'  , col_norms_W_target.max()),
                             
-                            
                             ('b_col_norms_min'  , col_norms_b.min()),
                             ('b_col_norms_mean' , col_norms_b.mean()),
                             ('b_col_norms_max'  , col_norms_b.max()),
@@ -185,11 +181,11 @@ class vLBL(Model):
         
     def cost_from_X(self, data):
         X, Y = data
-        s,denom = self.score(X,Y)
-        p_w_given_h = s/denom
+        s = self.score(X,Y)
+        p_w_given_h = T.nnet.softmax(s)
         #15x1
         #T.arange(Y.shape[0]), Y])
-        return -T.mean(T.log2(p_w_given_h))
+        return -T.mean(T.log2(p_w_given_h)[T.arange(Y.shape[0]), Y])
 
 class vLBLNCE(vLBL):
     
