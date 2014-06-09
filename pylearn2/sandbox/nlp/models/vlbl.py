@@ -192,63 +192,24 @@ class vLBLNCE(vLBL):
         super(vLBLNCE, self).__init__(dict_size, dim, context_length,k)
         self.k = k
 
-    def score(self, X, Y):
+    def score(self, X, Y, noisegiven=False):
         """
         So takes X which is context.
         gets r_w which project returns
         gets q_hat = from calculating fprop which gives us the predicted representation.
         Then finds score by doing dot product with the target representation
         """
-
         X = self.projector_context.project(X)
         q_h = self.fprop(X)
-
-        q_w = self.projector_target.project(Y)
-        # print Y.dtype
-        # print self.allY.dtype
-        # print Y.type
-        # print type(Y)
-        # print type(self.allY)
-        #all_q_w = self.projector_target.project(self.allY)
-        
-        swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
-        #sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
-        #swh = T.exp(swh)
-        #sallwh = T.exp(sallwh).sum(axis=1)
-        return swh
-
-    #10,5
-    # if ndim == 1: 
-    #     #for vector this is the case
-    #         #.reshape((Y.shape[0], self.dim))
-    #     q_w = self.projector.project(Y)
-    #     rval = (q_w * q_h).sum(axis=1) + self.b[Y].flatten()
-    # elif ndim == 2:
-    #     #q_w = self.projector.project(Y).reshape((Y.shape[0], Y.shape[1], self.dim)).dimshuffle(1, 0, 2)
-    #     #rval = (q_h.dimshuffle('x', 0, 1) + q_w).sum(axis=1) + self.b[Y].flatten()
-    #     rval = (q_h.dimshuffle('x', 0, 1) * q_w).sum(axis=2) + self.b[Y].flatten()
-    #return rval
-
-    def score(self, X, Y):
-        """
-        So takes X which is context.
-        gets r_w which project returns
-        gets q_hat = from calculating fprop which gives us the predicted representation.
-        Then finds score by doing dot product with the target representation
-        """
-
-        X = self.projector_context.project(X)
-        q_h = self.fprop(X)
-
-        q_w = self.projector_target.project(Y)
-        #all_q_w = self.projector_target.project(self.allY)
-
-        swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
-        #sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
-        #swh = T.exp(swh)
-        #sallwh = T.exp(sallwh).sum(axis=1)
-
-        #return s, sallwh
+            
+        if noisegiven == False:
+            q_w = self.projector_target.project(Y)
+            swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
+        else:
+            q_w = self.projector_target.project(Y)
+            q_h = q_h.dimshuffle(0,'x',1)
+            #shape is number of examples x noise_per_clean x dimensions
+            swh = (q_w*q_h).sum(axis=2)
         return swh
     
 
@@ -275,9 +236,11 @@ class vLBLNCE(vLBL):
             de = de - T.log(self.k*p_n)
         else:
             p_n = 1. / self.dict_size
-            de = self.score(X,noise)
+            s = self.score(X,noise,True)
+            #this de is 15x3. score for each of the noise sample
+            de = s - T.log(self.k*p_n)
         #this is only for uniform(?)
-        return de
+        return s,de
 
 class CostNCE(Cost):
     def __init__(self,samples):
@@ -293,19 +256,24 @@ class CostNCE(Cost):
 
     def get_gradients(self, model, data, **kwargs):
         params = model.get_params()
-        delta_y = model.delta(data)
         
-        prob = T.nnet.sigmoid(delta_val)
-        expr = (1 - prob)*
         X,Y=data
-        pwh = T.exp(model.score(X,Y))
-
+        
         theano_rng = RandomStreams(0)
 
-        noise = theano_rng.uniform( size = (model.k*self.noise_per_clean,1) , avg = 0, std = 10000, dtype=int)
-        delta_noise = model.delta(data,noise)
+        noise = theano_rng.uniform( size = (Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
+        
+        noise = noise.reshape((Y.shape[0]*,self.noise_per_clean))
+        score_noise,delta_noise = model.delta(data,noise)
+        #this is 15x3
+        to_sum = T.nnet.sigmoid(delta_noise)
+        to_sum = to_sum * theano.gradients.jacobian(T.log(T.exp(score_noise)))
+        noise_part = T.mean(to_sum)
 
-        grad = (1-prob)(theano.gradients.jacobian(phw,params))- T.mean((probnoise)*(theano.gradients.jacobian(probnoise[i],params)))
+        delta_y = model.delta(data)
+        prob = T.nnet.sigmoid(delta_y)
+        phw = T.exp(model.score(X,Y))
+        grad = (1-prob)(theano.gradients.jacobian(phw,params))- noise_part
 
 
-
+        
