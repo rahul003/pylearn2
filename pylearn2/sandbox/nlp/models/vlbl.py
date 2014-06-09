@@ -191,6 +191,7 @@ class vLBLNCE(vLBL):
     def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
         super(vLBLNCE, self).__init__(dict_size, dim, context_length,k)
         self.k = k
+
     def score(self, X, Y):
         """
         So takes X which is context.
@@ -228,14 +229,28 @@ class vLBLNCE(vLBL):
     #     rval = (q_h.dimshuffle('x', 0, 1) * q_w).sum(axis=2) + self.b[Y].flatten()
     #return rval
 
+    def score(self, X, Y):
+        """
+        So takes X which is context.
+        gets r_w which project returns
+        gets q_hat = from calculating fprop which gives us the predicted representation.
+        Then finds score by doing dot product with the target representation
+        """
+
+        X = self.projector_context.project(X)
+        q_h = self.fprop(X)
+
+        q_w = self.projector_target.project(Y)
+        #all_q_w = self.projector_target.project(self.allY)
+
+        swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
+        #sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
+        #swh = T.exp(swh)
+        #sallwh = T.exp(sallwh).sum(axis=1)
+
+        #return s, sallwh
+        return swh
     
-    def delta(self, data, ndim = 1):
-        X, Y = data
-        p_n = 1. / self.dict_size
-        de = self.score(X,Y)
-        de = de - T.log(self.k*p_n)
-        #this is only for uniform(?)
-        return de
 
         #return self.score(X, Y, ndim = ndim) - T.log(self.k * p_n)
     def prob_data_given_word_theta(self,delta_rval):
@@ -252,12 +267,24 @@ class vLBLNCE(vLBL):
     #     #return -T.mean(delta_rv)
     #     #expectation over data of log prob_data_given_word_theta
     #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
-        
+    def delta(self, data, ndim = 1,noise=None):
+        X, Y = data
+        if noise is None:
+            p_n = 1. / self.dict_size
+            de = self.score(X,Y)
+            de = de - T.log(self.k*p_n)
+        else:
+            p_n = 1. / self.dict_size
+            de = self.score(X,noise)
+        #this is only for uniform(?)
+        return de
+
 class CostNCE(Cost):
     def __init__(self,samples):
         #assert isinstance (samples, py_integer_types)
         self.noise_per_clean = samples
         self.random_stream = RandomStreams(seed=1)
+
     def expr(self,model,data):
         return None
 
@@ -266,6 +293,19 @@ class CostNCE(Cost):
 
     def get_gradients(self, model, data, **kwargs):
         params = model.get_params()
+        delta_y = model.delta(data)
+        
+        prob = T.nnet.sigmoid(delta_val)
+        expr = (1 - prob)*
+        X,Y=data
+        pwh = T.exp(model.score(X,Y))
+
+        theano_rng = RandomStreams(0)
+
+        noise = theano_rng.uniform( size = (model.k*self.noise_per_clean,1) , avg = 0, std = 10000, dtype=int)
+        delta_noise = model.delta(data,noise)
+
+        grad = (1-prob)(theano.gradients.jacobian(phw,params))- T.mean((probnoise)*(theano.gradients.jacobian(probnoise[i],params)))
 
 
 
