@@ -30,8 +30,8 @@ def project(w, x):
             assert ValueError("project needs 1- or 2-dimensional input")
 
 v = 10
-k = 5
-n = 15
+k = 2
+n = 3
 x = np.random.randint(0,v,size=(n,6))
 #x.shape = (15,6)
 y = np.random.randint(0,v,size=(n,1))
@@ -67,19 +67,20 @@ ally = np.arange(v).reshape(v,1)
 qw = project(w,y)
 allqw = project(w,ally)
 
-#swh = (qw*qh).sum(axis=1) + b[y].flatten()
+swh = (qw*qh).sum(axis=1) + b[y].flatten()
 sallwh = theano.tensor.dot(qh,allqw.T)+b[ally].flatten()
-soft = theano.tensor.nnet.softmax(sallwh)
-print -T.mean(T.log2(soft)[T.arange(y.shape[0]), y])
 
-#esallwh = T.exp(sallwh)
-#eswh = T.exp(swh)
-#esallwh = esallwh.sum(axis=1)
+soft = theano.tensor.nnet.softmax(sallwh)
+a= -T.mean(T.log2(soft)[T.arange(y.shape[0]), y])
+
+esallwh = T.exp(sallwh)
+eswh = T.exp(swh)
+esallwh = esallwh.sum(axis=1)
 
 #print esallwh.eval().shape
 #print eswh.eval().shape
 
-#prob = eswh/esallwh
+prob = eswh/esallwh
 
 #done
 

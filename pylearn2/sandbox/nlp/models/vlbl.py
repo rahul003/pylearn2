@@ -18,7 +18,8 @@ from pylearn2.sandbox.nlp.models.lblcost import Default
 #import ipdb
 from pylearn2.space import CompositeSpace
 from pylearn2.costs.cost import Cost
-
+import math
+import theano
 class vLBL(Model):
 
     def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
@@ -30,8 +31,11 @@ class vLBL(Model):
         self.context_length = context_length
         self.dim = dim
         self.dict_size = dict_size
-        C = rng.randn(dim, context_length)
-        self.C = sharedX(C) 
+
+        C_values = np.asarray(rng.normal(0, math.sqrt(0.1),
+                                         size=(dim,context_length)),
+                              dtype=theano.config.floatX)
+        self.C = theano.shared(value=C_values, name='C', borrow=True)
 
         W_context = rng.uniform(-irange, irange, (dict_size, dim))
         W_context = sharedX(W_context,name='W_context')
@@ -45,7 +49,10 @@ class vLBL(Model):
 
         self.W_target = W_context
 
-        self.b = sharedX(np.zeros((dict_size,)), name = 'vLBL_b')
+        b_values = np.asarray(rng.normal(0, math.sqrt(0.1), size=(dict_size,)),
+                              dtype=theano.config.floatX)
+        self.b = theano.shared(value=b_values, name='b', borrow=True)
+
 
         self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
         self.output_space = IndexSpace(dim = 1, max_labels = dict_size)
@@ -87,16 +94,15 @@ class vLBL(Model):
         q_w = self.projector_target.project(Y)
         all_q_w = self.projector_target.project(self.allY)
         
-        #swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
+        swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
         sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
+        
         #swh = T.exp(swh)
         #sallwh = T.exp(sallwh).sum(axis=1)
 
-        #return s, sallwh
+        #return swh, sallwh
         return sallwh
-
         #10,5
-
         # if ndim == 1: 
         #     #for vector this is the case
         #         #.reshape((Y.shape[0], self.dim))
@@ -107,7 +113,6 @@ class vLBL(Model):
         #     #rval = (q_h.dimshuffle('x', 0, 1) + q_w).sum(axis=1) + self.b[Y].flatten()
         #     rval = (q_h.dimshuffle('x', 0, 1) * q_w).sum(axis=2) + self.b[Y].flatten()
         #return rval
-
 
     def get_default_cost(self):
         return Default()
@@ -180,10 +185,15 @@ class vLBL(Model):
         
     def cost_from_X(self, data):
         X, Y = data
+        #s,sallwh = self.score(X,Y)
+        #prob = s/sallwh
+
         s = self.score(X,Y)
         p_w_given_h = T.nnet.softmax(s)
+        
+
         #15x1
-        #T.arange(Y.shape[0]), Y])
+        #return -T.mean(T.log(prob))
         return -T.mean(T.log2(p_w_given_h)[T.arange(Y.shape[0]), Y])
 
 class vLBLNCE(vLBL):
@@ -263,7 +273,7 @@ class CostNCE(Cost):
 
         noise = theano_rng.uniform( size = (Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
         
-        noise = noise.reshape((Y.shape[0]*,self.noise_per_clean))
+        noise = noise.reshape((Y.shape[0],self.noise_per_clean))
         score_noise,delta_noise = model.delta(data,noise)
         #this is 15x3
         to_sum = T.nnet.sigmoid(delta_noise)
@@ -276,4 +286,4 @@ class CostNCE(Cost):
         grad = (1-prob)(theano.gradients.jacobian(phw,params))- noise_part
 
 
-        
+
