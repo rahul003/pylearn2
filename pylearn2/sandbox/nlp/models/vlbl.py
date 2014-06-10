@@ -129,50 +129,50 @@ class vLBLSoft(Model):
 
     def get_monitoring_channels(self, data):
 
-        W_context = self.W_context
-        W_target = self.W_target
-        b = self.b
-        C = self.C
+        # W_context = self.W_context
+        # W_target = self.W_target
+        # b = self.b
+        # C = self.C
 
-        sq_W_context = T.sqr(W_context)
-        sq_W_target = T.sqr(W_target)
-        sq_b = T.sqr(b)
-        sq_c = T.sqr(C)
+        # sq_W_context = T.sqr(W_context)
+        # sq_W_target = T.sqr(W_target)
+        # sq_b = T.sqr(b)
+        # sq_c = T.sqr(C)
 
-        row_norms_W_context = T.sqrt(sq_W_context.sum(axis=1))
-        col_norms_W_context = T.sqrt(sq_W_context.sum(axis=0))
+        # row_norms_W_context = T.sqrt(sq_W_context.sum(axis=1))
+        # col_norms_W_context = T.sqrt(sq_W_context.sum(axis=0))
 
-        row_norms_W_target = T.sqrt(sq_W_target.sum(axis=1))
-        col_norms_W_target = T.sqrt(sq_W_target.sum(axis=0))
+        # row_norms_W_target = T.sqrt(sq_W_target.sum(axis=1))
+        # col_norms_W_target = T.sqrt(sq_W_target.sum(axis=0))
         
-        col_norms_b = T.sqrt(sq_b.sum(axis=0))
+        # col_norms_b = T.sqrt(sq_b.sum(axis=0))
 
         
-        col_norms_c = T.sqrt(sq_c.sum(axis=0))
+        # col_norms_c = T.sqrt(sq_c.sum(axis=0))
 
-        rval = OrderedDict([
-                            ('W_context_row_norms_min'  , row_norms_W_context.min()),
-                            ('W_context_row_norms_mean' , row_norms_W_context.mean()),
-                            ('W_context_row_norms_max'  , row_norms_W_context.max()),
-                            ('W_context_col_norms_min'  , col_norms_W_context.min()),
-                            ('W_context_col_norms_mean' , col_norms_W_context.mean()),
-                            ('W_context_col_norms_max'  , col_norms_W_context.max()),
+        # rval = OrderedDict([
+        #                     ('W_context_row_norms_min'  , row_norms_W_context.min()),
+        #                     ('W_context_row_norms_mean' , row_norms_W_context.mean()),
+        #                     ('W_context_row_norms_max'  , row_norms_W_context.max()),
+        #                     ('W_context_col_norms_min'  , col_norms_W_context.min()),
+        #                     ('W_context_col_norms_mean' , col_norms_W_context.mean()),
+        #                     ('W_context_col_norms_max'  , col_norms_W_context.max()),
 
-                            ('W_target_row_norms_min'  , row_norms_W_target.min()),
-                            ('W_target_row_norms_mean' , row_norms_W_target.mean()),
-                            ('W_target_row_norms_max'  , row_norms_W_target.max()),
-                            ('W_target_col_norms_min'  , col_norms_W_target.min()),
-                            ('W_target_col_norms_mean' , col_norms_W_target.mean()),
-                            ('W_target_col_norms_max'  , col_norms_W_target.max()),
+        #                     ('W_target_row_norms_min'  , row_norms_W_target.min()),
+        #                     ('W_target_row_norms_mean' , row_norms_W_target.mean()),
+        #                     ('W_target_row_norms_max'  , row_norms_W_target.max()),
+        #                     ('W_target_col_norms_min'  , col_norms_W_target.min()),
+        #                     ('W_target_col_norms_mean' , col_norms_W_target.mean()),
+        #                     ('W_target_col_norms_max'  , col_norms_W_target.max()),
                             
-                            ('b_col_norms_min'  , col_norms_b.min()),
-                            ('b_col_norms_mean' , col_norms_b.mean()),
-                            ('b_col_norms_max'  , col_norms_b.max()),
+        #                     ('b_col_norms_min'  , col_norms_b.min()),
+        #                     ('b_col_norms_mean' , col_norms_b.mean()),
+        #                     ('b_col_norms_max'  , col_norms_b.max()),
 
-                            ('c_col_norms_min'  , col_norms_c.min()),
-                            ('c_col_norms_mean' , col_norms_c.mean()),
-                            ('c_col_norms_max'  , col_norms_c.max()),
-                            ])
+        #                     ('c_col_norms_min'  , col_norms_c.min()),
+        #                     ('c_col_norms_mean' , col_norms_c.mean()),
+        #                     ('c_col_norms_max'  , col_norms_c.max()),
+        #                     ])
 
         rval['nll'] = self.cost_from_X(data)
         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
@@ -214,8 +214,6 @@ class vLBL(Model):
         
         self.W_context = W_context
         self.W_target = W_target
-
-        self.W_target = W_context
 
         b_values = np.asarray(rng.normal(0, math.sqrt(irange), size=(dict_size,)),
                               dtype=theano.config.floatX)
@@ -263,50 +261,50 @@ class vLBL(Model):
 
     def get_monitoring_channels(self, data):
 
-        W_context = self.W_context
-        W_target = self.W_target
-        b = self.b
-        C = self.C
+        # W_context = self.W_context
+        # W_target = self.W_target
+        # b = self.b
+        # C = self.C
 
-        sq_W_context = T.sqr(W_context)
-        sq_W_target = T.sqr(W_target)
-        sq_b = T.sqr(b)
-        sq_c = T.sqr(C)
+        # sq_W_context = T.sqr(W_context)
+        # sq_W_target = T.sqr(W_target)
+        # sq_b = T.sqr(b)
+        # sq_c = T.sqr(C)
 
-        row_norms_W_context = T.sqrt(sq_W_context.sum(axis=1))
-        col_norms_W_context = T.sqrt(sq_W_context.sum(axis=0))
+        # row_norms_W_context = T.sqrt(sq_W_context.sum(axis=1))
+        # col_norms_W_context = T.sqrt(sq_W_context.sum(axis=0))
 
-        row_norms_W_target = T.sqrt(sq_W_target.sum(axis=1))
-        col_norms_W_target = T.sqrt(sq_W_target.sum(axis=0))
+        # row_norms_W_target = T.sqrt(sq_W_target.sum(axis=1))
+        # col_norms_W_target = T.sqrt(sq_W_target.sum(axis=0))
         
-        col_norms_b = T.sqrt(sq_b.sum(axis=0))
+        # col_norms_b = T.sqrt(sq_b.sum(axis=0))
 
         
-        col_norms_c = T.sqrt(sq_c.sum(axis=0))
+        # col_norms_c = T.sqrt(sq_c.sum(axis=0))
 
-        rval = OrderedDict([
-                            ('W_context_row_norms_min'  , row_norms_W_context.min()),
-                            ('W_context_row_norms_mean' , row_norms_W_context.mean()),
-                            ('W_context_row_norms_max'  , row_norms_W_context.max()),
-                            ('W_context_col_norms_min'  , col_norms_W_context.min()),
-                            ('W_context_col_norms_mean' , col_norms_W_context.mean()),
-                            ('W_context_col_norms_max'  , col_norms_W_context.max()),
+        # rval = OrderedDict([
+        #                     ('W_context_row_norms_min'  , row_norms_W_context.min()),
+        #                     ('W_context_row_norms_mean' , row_norms_W_context.mean()),
+        #                     ('W_context_row_norms_max'  , row_norms_W_context.max()),
+        #                     ('W_context_col_norms_min'  , col_norms_W_context.min()),
+        #                     ('W_context_col_norms_mean' , col_norms_W_context.mean()),
+        #                     ('W_context_col_norms_max'  , col_norms_W_context.max()),
 
-                            ('W_target_row_norms_min'  , row_norms_W_target.min()),
-                            ('W_target_row_norms_mean' , row_norms_W_target.mean()),
-                            ('W_target_row_norms_max'  , row_norms_W_target.max()),
-                            ('W_target_col_norms_min'  , col_norms_W_target.min()),
-                            ('W_target_col_norms_mean' , col_norms_W_target.mean()),
-                            ('W_target_col_norms_max'  , col_norms_W_target.max()),
+        #                     ('W_target_row_norms_min'  , row_norms_W_target.min()),
+        #                     ('W_target_row_norms_mean' , row_norms_W_target.mean()),
+        #                     ('W_target_row_norms_max'  , row_norms_W_target.max()),
+        #                     ('W_target_col_norms_min'  , col_norms_W_target.min()),
+        #                     ('W_target_col_norms_mean' , col_norms_W_target.mean()),
+        #                     ('W_target_col_norms_max'  , col_norms_W_target.max()),
                             
-                            ('b_col_norms_min'  , col_norms_b.min()),
-                            ('b_col_norms_mean' , col_norms_b.mean()),
-                            ('b_col_norms_max'  , col_norms_b.max()),
+        #                     ('b_col_norms_min'  , col_norms_b.min()),
+        #                     ('b_col_norms_mean' , col_norms_b.mean()),
+        #                     ('b_col_norms_max'  , col_norms_b.max()),
 
-                            ('c_col_norms_min'  , col_norms_c.min()),
-                            ('c_col_norms_mean' , col_norms_c.mean()),
-                            ('c_col_norms_max'  , col_norms_c.max()),
-                            ])
+        #                     ('c_col_norms_min'  , col_norms_c.min()),
+        #                     ('c_col_norms_mean' , col_norms_c.mean()),
+        #                     ('c_col_norms_max'  , col_norms_c.max()),
+        #                     ])
 
         rval['nll'] = self.cost_from_X(data)
         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
