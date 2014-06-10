@@ -8,15 +8,19 @@
         which_set: 'train',
         context_len: &context_len 6
     },
-    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBL {
+    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBLSoft {
         dict_size: 10000,
         dim: 512,
         context_length: *context_len,
         k: 50,
-        irange: 0.01
+        irange: 0.005
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
         batch_size: 100,
+        learning_rate: 0.5,
+        learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
+                init_momentum: 0.5,
+        },
         monitoring_dataset: {
             'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
                 which_set: 'valid',
@@ -29,11 +33,11 @@
             N: 10
         },
     },
-    extensions: [
-        !obj:pylearn2.training_algorithms.sgd.MomentumAdjustor {
-            start: 1,
-            saturate: 25,
-            final_momentum: 0.75
-        },
-    ]
+
+
+
+
+
+       
+    
 }
