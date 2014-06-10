@@ -1,77 +1,32 @@
 class NCE:
 
-""" Noise-Contrastive Estimation
-See "Noise-Contrastive Estimation: A new estimation principle for unnormalized models "
-by Gutmann and Hyvarinen
-"""
-+
+   	def h(self, X, model):
+       return - T.nnet.sigmoid(self.G(X, model))
 
-+    def h(self, X, model):
+   	def G(self, X, model):
+       return model.log_prob(X) - self.noise.log_prob(X)
 
-+        return - T.nnet.sigmoid(self.G(X, model))
+   	def __call__(self, model, X):
+       try:
+           m = X.shape[0]
 
-+
+       except:
+           print 'X: '+str(X)
+           print 'X.shape: '+str(X.shape)
+           print 'X.shape[0]: '+str(X.shape[0])
+           assert False
 
-+
+       Y = self.noise.random_design_matrix(m)
+       #Y = Print('Y',attrs=['min','max'])(Y)
+       #hx = self.h(X, model)
+       #hy = self.h(Y, model)
 
-+    def G(self, X, model):
+       log_hx = T.nnet.softplus(-self.G(X,model))
+       log_one_minus_hy = T.nnet.softplus(self.G(Y,model))
 
-+        return model.log_prob(X) - self.noise.log_prob(X)
+       rval = T.mean(log_hx+log_one_minus_hy)
+       #rval = Print('nce cost',attrs=['min','max'])(rval)
+       return rval
 
-+
-
-+    def __call__(self, model, X):
-
-+        try:
-
-+            m = X.shape[0]
-
-+        except:
-
-+            print 'X: '+str(X)
-
-+            print 'X.shape: '+str(X.shape)
-
-+            print 'X.shape[0]: '+str(X.shape[0])
-
-+            assert False
-
-+
-
-+        Y = self.noise.random_design_matrix(m)
-
-+
-
-+        #Y = Print('Y',attrs=['min','max'])(Y)
-
-+
-
-+        #hx = self.h(X, model)
-
-+        #hy = self.h(Y, model)
-
-+
-
-+        log_hx = T.nnet.softplus(-self.G(X,model))
-
-+        log_one_minus_hy = T.nnet.softplus(self.G(Y,model))
-
-+
-
-+
-
-+        rval = T.mean(log_hx+log_one_minus_hy)
-
-+
-
-+        #rval = Print('nce cost',attrs=['min','max'])(rval)
-
-+
-
-+        return rval
-
-+
-
-+    def __init__(self, noise):
-
-+        self.noise = noise
+   	def __init__(self, noise):
+       self.noise = noise

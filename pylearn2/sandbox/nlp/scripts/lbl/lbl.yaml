@@ -17,7 +17,6 @@
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
         batch_size: 100,
-        learning_rate: .6,
         monitoring_dataset: {
             'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
                 which_set: 'valid',
@@ -30,4 +29,11 @@
             N: 10
         },
     },
+    extensions: [
+        !obj:pylearn2.training_algorithms.sgd.MomentumAdjustor {
+            start: 1,
+            saturate: 25,
+            final_momentum: 0.75
+        },
+    ]
 }

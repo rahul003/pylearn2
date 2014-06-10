@@ -67,7 +67,7 @@ ally = np.arange(v).reshape(v,1)
 qw = project(w,y)
 allqw = project(w,ally)
 
-#swh = (qw*qh).sum(axis=1) + b[y].flatten()
+swh = (qw*qh).sum(axis=1) + b[y].flatten()
 sallwh = theano.tensor.dot(qh,allqw.T)+b[ally].flatten()
 soft = theano.tensor.nnet.softmax(sallwh)
 print -T.mean(T.log2(soft)[T.arange(y.shape[0]), y])
