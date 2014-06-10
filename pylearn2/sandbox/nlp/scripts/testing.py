@@ -71,14 +71,11 @@ swh = (qw*qh).sum(axis=1) + b[y].flatten()
 sallwh = theano.tensor.dot(qh,allqw.T)+b[ally].flatten()
 
 soft = theano.tensor.nnet.softmax(sallwh)
-a= -T.mean(T.log2(soft)[T.arange(y.shape[0]), y])
+probsoft = T.diag(soft[(T.arange(y.shape[0]),y)])
 
 esallwh = T.exp(sallwh)
 eswh = T.exp(swh)
 esallwh = esallwh.sum(axis=1)
-
-#print esallwh.eval().shape
-#print eswh.eval().shape
 
 prob = eswh/esallwh
 
