@@ -10,10 +10,10 @@
     },
     model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBL {
         dict_size: 10000,
-        dim: 50,
+        dim: 512,
         context_length: *context_len,
         k: 50,
-        irange: 0.05
+        irange: 0.01
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
         batch_size: 100,
