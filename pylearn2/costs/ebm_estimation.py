@@ -16,7 +16,6 @@ from pylearn2.utils import py_integer_types
 from pylearn2.utils.rng import make_theano_rng
 from pylearn2.models.rbm import BlockGibbsSampler
 
-
 logger = logging.getLogger(__name__)
 
 logger.debug("Cost changing the recursion limit.")

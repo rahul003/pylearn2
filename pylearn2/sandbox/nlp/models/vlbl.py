@@ -20,6 +20,7 @@ from pylearn2.space import CompositeSpace
 from pylearn2.costs.cost import Cost
 import math
 import theano
+from pylearn2.utils import py_integer_types
 class vLBLSoft(Model):
     def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
         super(vLBLSoft, self).__init__()
@@ -84,7 +85,7 @@ class vLBLSoft(Model):
         return (space, source)
     
     def get_monitoring_channels(self, data):
-
+        rval = OrderedDict()
         # W_context = self.W_context
         # W_target = self.W_target
         # b = self.b
@@ -130,6 +131,7 @@ class vLBLSoft(Model):
         #                     ('c_col_norms_max'  , col_norms_c.max()),
         #                     ])
 
+    
         rval['nll'] = self.cost_from_X(data)
         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
         return rval
@@ -146,145 +148,146 @@ class vLBLSoft(Model):
         p_w_given_h = T.nnet.softmax(s)
         return -T.mean(T.diag(T.log(p_w_given_h)[T.arange(Y.shape[0]), Y]))
 
-class vLBL(Model):
+# class vLBL(Model):
     
-    def score(self, X, Y):
-        X = self.projector_context.project(X)
-        q_h = self.fprop(X)
-        q_w = self.projector_target.project(Y)
-        all_q_w = self.projector_target.project(self.allY)
-        swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
-        sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
-        swh = T.exp(swh)
-        sallwh = T.exp(sallwh).sum(axis=1)
-        return swh, sallwh
+#     def score(self, X, Y):
+#         X = self.projector_context.project(X)
+#         q_h = self.fprop(X)
+#         q_w = self.projector_target.project(Y)
+#         all_q_w = self.projector_target.project(self.allY)
+#         swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
+#         sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
+#         swh = T.exp(swh)
+#         sallwh = T.exp(sallwh).sum(axis=1)
+#         return swh, sallwh
 
-    def cost_from_X(self, data):
-        X, Y = data
-        s,sallwh = self.score(X,Y)
-        prob = s/sallwh
-        return -T.mean(T.log(prob))
+#     def cost_from_X(self, data):
+#         X, Y = data
+#         s,sallwh = self.score(X,Y)
+#         prob = s/sallwh
+#         return -T.mean(T.log(prob))
     
-    def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
-	super(vLBL, self).__init__()
-        rng = np.random.RandomState(seed)
-        self.rng = rng
-        self.context_length = context_length
-        self.dim = dim
-        self.dict_size = dict_size
+#     def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
+# 	super(vLBL, self).__init__()
+#         rng = np.random.RandomState(seed)
+#         self.rng = rng
+#         self.context_length = context_length
+#         self.dim = dim
+#         self.dict_size = dict_size
 
-        C_values = np.asarray(rng.normal(0, math.sqrt(irange),
-                                         size=(dim,context_length)),
-                              dtype=theano.config.floatX)
-        self.C = theano.shared(value=C_values, name='C', borrow=True)
+#         C_values = np.asarray(rng.normal(0, math.sqrt(irange),
+#                                          size=(dim,context_length)),
+#                               dtype=theano.config.floatX)
+#         self.C = theano.shared(value=C_values, name='C', borrow=True)
 
-        W_context = rng.uniform(-irange, irange, (dict_size, dim))
-        W_context = sharedX(W_context,name='W_context')
-        W_target = rng.uniform(-irange, irange, (dict_size, dim))
-        W_target = sharedX(W_target,name='W_target')
-        self.projector_context = MatrixMul(W_context)
-        self.projector_target = MatrixMul(W_target)
+#         W_context = rng.uniform(-irange, irange, (dict_size, dim))
+#         W_context = sharedX(W_context,name='W_context')
+#         W_target = rng.uniform(-irange, irange, (dict_size, dim))
+#         W_target = sharedX(W_target,name='W_target')
+#         self.projector_context = MatrixMul(W_context)
+#         self.projector_target = MatrixMul(W_target)
         
-        self.W_context = W_context
-        self.W_target = W_target
+#         self.W_context = W_context
+#         self.W_target = W_target
 
-        b_values = np.asarray(rng.normal(0, math.sqrt(irange), size=(dict_size,)),
-                              dtype=theano.config.floatX)
-        self.b = theano.shared(value=b_values, name='b', borrow=True)
+#         b_values = np.asarray(rng.normal(0, math.sqrt(irange), size=(dict_size,)),
+#                               dtype=theano.config.floatX)
+#         self.b = theano.shared(value=b_values, name='b', borrow=True)
 
-        self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
-        self.output_space = IndexSpace(dim = 1, max_labels = dict_size)
+#         self.input_space = IndexSpace(dim = context_length, max_labels = dict_size)
+#         self.output_space = IndexSpace(dim = 1, max_labels = dict_size)
 
-        self.allY = T.as_tensor_variable(np.arange(dict_size,dtype=np.int64).reshape(dict_size,1))
+#         self.allY = T.as_tensor_variable(np.arange(dict_size,dtype=np.int64).reshape(dict_size,1))
    
-    def get_params(self):
-        #get W from projector
-        rval1 = self.projector_context.get_params()
-        rval2 = self.projector_target.get_params()
-                #add C, b
-        rval1.extend([self.C, self.b])
-        rval1.extend(rval2)
-        return rval1
+#     def get_params(self):
+#         #get W from projector
+#         rval1 = self.projector_context.get_params()
+#         rval2 = self.projector_target.get_params()
+#                 #add C, b
+#         rval1.extend([self.C, self.b])
+#         rval1.extend(rval2)
+#         return rval1
 
-    def fprop(self, state_below):
-        """
-        state_below is r_w?
-        """
-        state_below = state_below.reshape((state_below.shape[0], self.dim, self.context_length))
-        rval = self.C.dimshuffle('x', 0, 1) * state_below
-        rval = rval.sum(axis=2)
-        return rval
+#     def fprop(self, state_below):
+#         """
+#         state_below is r_w?
+#         """
+#         state_below = state_below.reshape((state_below.shape[0], self.dim, self.context_length))
+#         rval = self.C.dimshuffle('x', 0, 1) * state_below
+#         rval = rval.sum(axis=2)
+#         return rval
 
-    def get_default_cost(self):
-        return Default()
+#     def get_default_cost(self):
+#         return Default()
 
-    def get_monitoring_data_specs(self):
-        """
-        Returns data specs requiring both inputs and targets.
+#     def get_monitoring_data_specs(self):
+#         """
+#         Returns data specs requiring both inputs and targets.
 
-        Returns
-        -------
-        data_specs: TODO
-            The data specifications for both inputs and targets.
-        """
-        space = CompositeSpace((self.get_input_space(),
-                                self.get_output_space()))
-        source = (self.get_input_source(), self.get_target_source())
-        return (space, source)
+#         Returns
+#         -------
+#         data_specs: TODO
+#             The data specifications for both inputs and targets.
+#         """
+#         space = CompositeSpace((self.get_input_space(),
+#                                 self.get_output_space()))
+#         source = (self.get_input_source(), self.get_target_source())
+#         return (space, source)
 
-    def get_monitoring_channels(self, data):
+#     def get_monitoring_channels(self, data):
 
-        # W_context = self.W_context
-        # W_target = self.W_target
-        # b = self.b
-        # C = self.C
+#         # W_context = self.W_context
+#         # W_target = self.W_target
+#         # b = self.b
+#         # C = self.C
 
-        # sq_W_context = T.sqr(W_context)
-        # sq_W_target = T.sqr(W_target)
-        # sq_b = T.sqr(b)
-        # sq_c = T.sqr(C)
+#         # sq_W_context = T.sqr(W_context)
+#         # sq_W_target = T.sqr(W_target)
+#         # sq_b = T.sqr(b)
+#         # sq_c = T.sqr(C)
 
-        # row_norms_W_context = T.sqrt(sq_W_context.sum(axis=1))
-        # col_norms_W_context = T.sqrt(sq_W_context.sum(axis=0))
+#         # row_norms_W_context = T.sqrt(sq_W_context.sum(axis=1))
+#         # col_norms_W_context = T.sqrt(sq_W_context.sum(axis=0))
 
-        # row_norms_W_target = T.sqrt(sq_W_target.sum(axis=1))
-        # col_norms_W_target = T.sqrt(sq_W_target.sum(axis=0))
+#         # row_norms_W_target = T.sqrt(sq_W_target.sum(axis=1))
+#         # col_norms_W_target = T.sqrt(sq_W_target.sum(axis=0))
         
-        # col_norms_b = T.sqrt(sq_b.sum(axis=0))
+#         # col_norms_b = T.sqrt(sq_b.sum(axis=0))
 
         
-        # col_norms_c = T.sqrt(sq_c.sum(axis=0))
+#         # col_norms_c = T.sqrt(sq_c.sum(axis=0))
 
-        # rval = OrderedDict([
-        #                     ('W_context_row_norms_min'  , row_norms_W_context.min()),
-        #                     ('W_context_row_norms_mean' , row_norms_W_context.mean()),
-        #                     ('W_context_row_norms_max'  , row_norms_W_context.max()),
-        #                     ('W_context_col_norms_min'  , col_norms_W_context.min()),
-        #                     ('W_context_col_norms_mean' , col_norms_W_context.mean()),
-        #                     ('W_context_col_norms_max'  , col_norms_W_context.max()),
+#         # rval = OrderedDict([
+#         #                     ('W_context_row_norms_min'  , row_norms_W_context.min()),
+#         #                     ('W_context_row_norms_mean' , row_norms_W_context.mean()),
+#         #                     ('W_context_row_norms_max'  , row_norms_W_context.max()),
+#         #                     ('W_context_col_norms_min'  , col_norms_W_context.min()),
+#         #                     ('W_context_col_norms_mean' , col_norms_W_context.mean()),
+#         #                     ('W_context_col_norms_max'  , col_norms_W_context.max()),
 
-        #                     ('W_target_row_norms_min'  , row_norms_W_target.min()),
-        #                     ('W_target_row_norms_mean' , row_norms_W_target.mean()),
-        #                     ('W_target_row_norms_max'  , row_norms_W_target.max()),
-        #                     ('W_target_col_norms_min'  , col_norms_W_target.min()),
-        #                     ('W_target_col_norms_mean' , col_norms_W_target.mean()),
-        #                     ('W_target_col_norms_max'  , col_norms_W_target.max()),
+#         #                     ('W_target_row_norms_min'  , row_norms_W_target.min()),
+#         #                     ('W_target_row_norms_mean' , row_norms_W_target.mean()),
+#         #                     ('W_target_row_norms_max'  , row_norms_W_target.max()),
+#         #                     ('W_target_col_norms_min'  , col_norms_W_target.min()),
+#         #                     ('W_target_col_norms_mean' , col_norms_W_target.mean()),
+#         #                     ('W_target_col_norms_max'  , col_norms_W_target.max()),
                             
-        #                     ('b_col_norms_min'  , col_norms_b.min()),
-        #                     ('b_col_norms_mean' , col_norms_b.mean()),
-        #                     ('b_col_norms_max'  , col_norms_b.max()),
+#         #                     ('b_col_norms_min'  , col_norms_b.min()),
+#         #                     ('b_col_norms_mean' , col_norms_b.mean()),
+#         #                     ('b_col_norms_max'  , col_norms_b.max()),
 
-        #                     ('c_col_norms_min'  , col_norms_c.min()),
-        #                     ('c_col_norms_mean' , col_norms_c.mean()),
-        #                     ('c_col_norms_max'  , col_norms_c.max()),
-        #                     ])
+#         #                     ('c_col_norms_min'  , col_norms_c.min()),
+#         #                     ('c_col_norms_mean' , col_norms_c.mean()),
+#         #                     ('c_col_norms_max'  , col_norms_c.max()),
+#         #                     ])
 
-        rval['nll'] = self.cost_from_X(data)
-        rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
-        return rval
+#         rval['nll'] = self.cost_from_X(data)
+#         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
+#         return rval
 
 
-class vLBLNCE(vLBL):
+
+class vLBLNCE(vLBLSoft):
     
     def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
         super(vLBLNCE, self).__init__(dict_size, dim, context_length,k)
@@ -307,25 +310,14 @@ class vLBLNCE(vLBL):
             q_w = self.projector_target.project(Y)
             q_h = q_h.dimshuffle(0,'x',1)
             #shape is number of examples x noise_per_clean x dimensions
-            swh = (q_w*q_h).sum(axis=2)
+            swh = (q_w*q_h).sum(axis=2) + self.b[Y]
         return swh
-    
+        #shape is numExamples x noise+per+clean
 
         #return self.score(X, Y, ndim = ndim) - T.log(self.k * p_n)
     def prob_data_given_word_theta(self,delta_rval):
         return T.nnet.sigmoid(delta_rval)
 
-    # def cost_from_X(self,data):
-       
-    #     delta_rval = self.delta(data)
-    #     prob = self.prob_data_given_word_theta(delta_rval)
-    #     logprob = T.log(prob)
-    #     logprobnoise = T.log(1-prob) 
-        
-    #     return -(T.mean(logprob)+T.mean(logprobnoise))
-    #     #return -T.mean(delta_rv)
-    #     #expectation over data of log prob_data_given_word_theta
-    #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
     def delta(self, data,noise=None):
         X, Y = data
         if noise is None:
@@ -341,9 +333,20 @@ class vLBLNCE(vLBL):
             return s,de
         #this is only for uniform(?)
 
+    # def cost_from_X(self,data):
+    #     delta_rval = self.delta(data)
+    #     prob = self.prob_data_given_word_theta(delta_rval)
+    #     logprob = T.log(prob)
+    #     logprobnoise = T.log(1-prob) 
+    #     return -(T.mean(logprob)+T.mean(logprobnoise))
+    #     #return -T.mean(delta_rv)
+    #     #expectation over data of log prob_data_given_word_theta
+    #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
+
+
 class CostNCE(Cost):
     def __init__(self,samples):
-        #assert isinstance (samples, py_integer_types)
+        assert isinstance (samples, py_integer_types)
         self.noise_per_clean = samples
         self.random_stream = RandomStreams(seed=1)
 
@@ -351,28 +354,24 @@ class CostNCE(Cost):
         return None
 
     def get_data_specs(self, model):
-        
         space = CompositeSpace((model.get_input_space(),
                                 model.get_output_space()))
         source = (model.get_input_source(), model.get_target_source())
         return (space, source)
-        #return (model.get_input_space(), model.get_input_source())
-
 
     def get_gradients(self, model, data, **kwargs):
         params = model.get_params()
-        
         X,Y=data
-        
         theano_rng = RandomStreams(0)
-
-        noise = theano_rng.uniform( size = (Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
-        
-        noise = noise.reshape((Y.shape[0],self.noise_per_clean))
-        score_noise,delta_noise = model.delta(data,noise)
+        noise = theano_rng.uniform(size=(Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
+        noise = np.ones((100,15))
+        #noise = noise.reshape((Y.shape[0],self.noise_per_clean))
         #this is 15x3
-        to_sum = T.nnet.sigmoid(delta_noise)
-        to_sum = to_sum * T.grad(T.log(T.exp(score_noise)),params)
+        #both of below are 15x3
+        score_noise,delta_noise = model.delta(data,noise)
+        
+        to_sum = T.nnet.sigmoid(delta_noise.flatten())
+        to_sum = to_sum * theano.gradient.jacobian(score_noise.flatten(),params)
         noise_part = T.mean(to_sum)
 
         delta_y = model.delta(data)
@@ -384,4 +383,3 @@ class CostNCE(Cost):
         gradients = OrderedDict(izip(params, grads))
         updates = OrderedDict()
         return gradients, updates
-
