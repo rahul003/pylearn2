@@ -10,7 +10,7 @@
     },
     model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBLSoft {
         dict_size: 10000,
-        dim: 512,
+        dim: 500,
         context_length: *context_len,
         k: 50,
         irange: 0.005
@@ -26,7 +26,7 @@
             !obj:pylearn2.sandbox.nlp.models.lblcost.Dropout {
                 #coeffs: [ .00005, .00005, .00005 ]
                 default_input_include_prob: 0.5,
-                default_input_scale: 2.
+                default_input_scale: 5.
             }
             ]
         },
@@ -34,7 +34,8 @@
             'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
                 which_set: 'valid',
                 context_len: *context_len
-            }
+            },
+            'train' : *train,
         },
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
             channel_name: 'valid_perplexity',

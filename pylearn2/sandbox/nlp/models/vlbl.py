@@ -319,8 +319,8 @@ class vLBLNCE(vLBLSoft):
 
     def get_monitoring_channels(self, data):
         rval = OrderedDict()
-        #rval['nll'] = self.cost_from_X(data)
-        #rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
+        rval['nll'] = self.cost_from_X(data)
+        rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
         return rval
     def delta(self, data,noise=None):
         X, Y = data
@@ -361,20 +361,23 @@ class CostNCE(Cost):
                                 model.get_output_space()))
         source = (model.get_input_source(), model.get_target_source())
         return (space, source)
-
+    def get_noise(self,Y):
+        theano_rng = RandomStreams(0)
+        noise = theano_rng.uniform(size=(Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
+        return sharedX(noise)
+        
     def get_gradients(self, model, data, **kwargs):
         params = model.get_params()
         X,Y=data
-        theano_rng = RandomStreams(0)
-        noise = theano_rng.uniform(size=(Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
-        dtynoise = np.ones((100,15))
+	#noise = self.get_noise(Y)
+        dtynoise = np.ones((100,15),dtype='int32')
         #noise = noise.reshape((Y.shape[0],self.noise_per_clean))
         #this is 15x3
         #both of below are 15x3
-        score_noise,delta_noise = model.delta(data,noise)
+        score_noise,delta_noise = model.delta(data,dtynoise)
         
-        to_sum = T.nnet.sigmoid(delta_noise.flatten())
-        to_sum = to_sum * theano.gradient.jacobian(score_noise.flatten(),params)
+
+        to_sum = T.nnet.sigmoid(delta_noise.flatten()) * theano.gradient.jacobian(score_noise.flatten(),params)
         noise_part = T.mean(to_sum)
 
         delta_y = model.delta(data)

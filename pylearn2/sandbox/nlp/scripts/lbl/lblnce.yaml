@@ -25,7 +25,7 @@
             },
         },
         cost: !obj:pylearn2.sandbox.nlp.models.vlbl.CostNCE {
-                samples: 15
+               samples: 15
             },
 
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
