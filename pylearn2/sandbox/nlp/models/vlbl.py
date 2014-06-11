@@ -134,7 +134,8 @@ class vLBLSoft(Model):
         #                     ('c_col_norms_max'  , col_norms_c.max()),
         #                     ])
 
-    
+         
+
         rval['nll'] = self.cost_from_X(data)
         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
         return rval
@@ -297,12 +298,7 @@ class vLBLNCE(vLBLSoft):
         self.k = k
 
     def score(self, X, Y, noisegiven=False):
-        """
-        So takes X which is context.
-        gets r_w which project returns
-        gets q_hat = from calculating fprop which gives us the predicted representation.
-        Then finds score by doing dot product with the target representation
-        """
+        
         X = self.projector_context.project(X)
         q_h = self.fprop(X)
             
@@ -321,6 +317,11 @@ class vLBLNCE(vLBLSoft):
     def prob_data_given_word_theta(self,delta_rval):
         return T.nnet.sigmoid(delta_rval)
 
+    def get_monitoring_channels(self, data):
+        rval = OrderedDict()
+        #rval['nll'] = self.cost_from_X(data)
+        #rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
+        return rval
     def delta(self, data,noise=None):
         X, Y = data
         if noise is None:
@@ -336,15 +337,15 @@ class vLBLNCE(vLBLSoft):
             return s,de
         #this is only for uniform(?)
 
-    # def cost_from_X(self,data):
-    #     delta_rval = self.delta(data)
-    #     prob = self.prob_data_given_word_theta(delta_rval)
-    #     logprob = T.log(prob)
-    #     logprobnoise = T.log(1-prob) 
-    #     return -(T.mean(logprob)+T.mean(logprobnoise))
-    #     #return -T.mean(delta_rv)
-    #     #expectation over data of log prob_data_given_word_theta
-    #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
+    def cost_from_X(self,data):
+        delta_rval = self.delta(data)
+        prob = self.prob_data_given_word_theta(delta_rval)
+        logprob = T.log(prob)
+        logprobnoise = T.log(1-prob) 
+        return -(T.mean(logprob)+T.mean(logprobnoise))
+        #return -T.mean(delta_rv)
+        #expectation over data of log prob_data_given_word_theta
+        # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
 
 class CostNCE(Cost):
     def __init__(self,samples):
@@ -366,7 +367,7 @@ class CostNCE(Cost):
         X,Y=data
         theano_rng = RandomStreams(0)
         noise = theano_rng.uniform(size=(Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
-        noise = np.ones((100,15))
+        dtynoise = np.ones((100,15))
         #noise = noise.reshape((Y.shape[0],self.noise_per_clean))
         #this is 15x3
         #both of below are 15x3

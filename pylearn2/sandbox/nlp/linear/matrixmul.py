@@ -28,7 +28,7 @@ class MatrixMul(matrixmul.MatrixMul):
         #assert 'int' in x.dtype
 
         if x.ndim == 2:
-            assert 'int' in x.flatten().dtype
+            #assert 'int' in x.flatten().dtype
             shape = (x.shape[0], x.shape[1] * self._W.shape[1])
             return self._W[x.flatten()].reshape(shape)
         elif x.ndim == 1:
