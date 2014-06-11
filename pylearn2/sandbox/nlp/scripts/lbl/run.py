@@ -6,6 +6,7 @@ from pylearn2.testing.skip import skip_if_no_data
 from pylearn2.config import yaml_parse
 
 theano.config.exception_verbosity = 'high'
+
 skip_if_no_data()
 #/u/huilgolr/
 with open('/u/huilgolr/pylearn2/pylearn2/sandbox/nlp/scripts/lbl/lbl.yaml', 'r') as f:

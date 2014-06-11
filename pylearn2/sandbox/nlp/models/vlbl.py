@@ -148,21 +148,17 @@ class vLBLSoft(Model):
         X = self.projector_context.project(X)
         q_h = self.fprop(X)
         
-        rval = self.cost(self.allY,q_h)
+        rval = self.cost(Y,q_h)
         return rval
     
     def cost(self,Y,q_h):
-        all_q_w = self.projector_target.project(Y)
+        all_q_w = self.projector_target.project(self.allY)
         s = self.score(all_q_w,q_h)
         p_w_given_h = T.nnet.softmax(s)
         return T.cast(-T.mean(T.diag(T.log(p_w_given_h)[T.arange(Y.shape[0]), Y])),theano.config.floatX)
 
-    def apply_dropout(self, state, include_prob, scale, theano_rng,
-                      input_space, mask_value=0, per_example=True):
+    def apply_dropout(self, state, include_prob, scale, theano_rng, input_space, mask_value=0, per_example=True):
         """
-        .. todo::
-
-            WRITEME
         Parameters
         ----------
         state: WRITEME
@@ -201,6 +197,8 @@ class vLBLSoft(Model):
             rval = state * mask * scale
         else:
             rval = T.switch(mask, state * scale, mask_value)
+
+        
         return T.cast(rval, state.dtype)
 
 

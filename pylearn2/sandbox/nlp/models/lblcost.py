@@ -104,7 +104,7 @@ class Dropout(DefaultDataSpecsMixin, Cost):
         (X, Y) = data
         #thisis q_h
         Y_hat = model.dropout_fprop(
-            X,
+            model.projector_context.project(X),
             default_input_include_prob=self.default_input_include_prob,
             input_include_probs=self.input_include_probs,
             default_input_scale=self.default_input_scale,
