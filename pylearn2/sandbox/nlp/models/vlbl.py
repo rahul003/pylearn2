@@ -16,9 +16,12 @@ from pylearn2.sandbox.nlp.linear.matrixmul import MatrixMul
 from pylearn2.models.model import Model
 from pylearn2.sandbox.nlp.models.lblcost import Default
 #import ipdb
+from pylearn2.models import mlp
+from pylearn2.models.mlp import Layer
 from pylearn2.space import CompositeSpace
 from pylearn2.costs.cost import Cost
 import math
+import warnings
 import theano
 from pylearn2.utils import py_integer_types
 class vLBLSoft(Model):
@@ -136,17 +139,266 @@ class vLBLSoft(Model):
         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
         return rval
     
-    def score(self, X, Y):
-        X = self.projector_context.project(X)
-        q_h = self.fprop(X)
-        all_q_w = self.projector_target.project(self.allY)
+    def score(self, all_q_w, q_h):
         sallwh = T.dot(q_h,all_q_w.T) + self.b.dimshuffle('x',0)
         return sallwh
+
     def cost_from_X(self, data):
         X, Y = data
-        s = self.score(X,Y)
+        X = self.projector_context.project(X)
+        q_h = self.fprop(X)
+        
+        rval = self.cost(self.allY,q_h)
+        return rval
+    
+    def cost(self,Y,q_h):
+        all_q_w = self.projector_target.project(Y)
+        s = self.score(all_q_w,q_h)
         p_w_given_h = T.nnet.softmax(s)
-        return -T.mean(T.diag(T.log(p_w_given_h)[T.arange(Y.shape[0]), Y]))
+        return T.cast(-T.mean(T.diag(T.log(p_w_given_h)[T.arange(Y.shape[0]), Y])),theano.config.floatX)
+
+    def apply_dropout(self, state, include_prob, scale, theano_rng,
+                      input_space, mask_value=0, per_example=True):
+        """
+        .. todo::
+
+            WRITEME
+        Parameters
+        ----------
+        state: WRITEME
+        include_prob : WRITEME
+        scale : WRITEME
+        theano_rng : WRITEME
+        input_space : WRITEME
+        mask_value : WRITEME
+        per_example : bool, optional
+            Sample a different mask value for every example in a batch.
+            Defaults to `True`. If `False`, sample one mask per mini-batch.
+        """
+        if include_prob in [None, 1.0, 1]:
+            return state
+        assert scale is not None
+        if isinstance(state, tuple):
+            return tuple(self.apply_dropout(substate, include_prob,
+                                            scale, theano_rng, mask_value)
+                         for substate in state)
+        # TODO: all of this assumes that if it's not a tuple, it's
+        # a dense tensor. It hasn't been tested with sparse types.
+        # A method to format the mask (or any other values) as
+        # the given symbolic type should be added to the Spaces
+        # interface.
+        if per_example:
+            mask = theano_rng.binomial(p=include_prob, size=state.shape,
+                                       dtype=state.dtype)
+        else:
+            batch = input_space.get_origin_batch(1)
+            mask = theano_rng.binomial(p=include_prob, size=batch.shape,
+                                       dtype=state.dtype)
+            rebroadcast = T.Rebroadcast(*zip(xrange(batch.ndim),
+                                             [s == 1 for s in batch.shape]))
+            mask = rebroadcast(mask)
+        if mask_value == 0:
+            rval = state * mask * scale
+        else:
+            rval = T.switch(mask, state * scale, mask_value)
+        return T.cast(rval, state.dtype)
+
+
+    def dropout_fprop(self, state_below, default_input_include_prob=0.5,
+                      input_include_probs=None, default_input_scale=2.,
+                      input_scales=None, per_example=True):
+        """
+        Returns the output of the MLP, when applying dropout to the input and
+        intermediate layers.
+
+
+        Parameters
+        ----------
+        state_below : WRITEME
+            The input to the MLP
+        default_input_include_prob : WRITEME
+        input_include_probs : WRITEME
+        default_input_scale : WRITEME
+        input_scales : WRITEME
+        per_example : bool, optional
+            Sample a different mask value for every example in a batch.
+            Defaults to `True`. If `False`, sample one mask per mini-batch.
+
+
+        Notes
+        -----
+        Each input to each layer is randomly included or
+        excluded for each example. The probability of inclusion is independent
+        for each input and each example. Each layer uses
+        `default_input_include_prob` unless that layer's name appears as a key
+        in input_include_probs, in which case the input inclusion probability
+        is given by the corresponding value.
+
+        Each feature is also multiplied by a scale factor. The scale factor for
+        each layer's input scale is determined by the same scheme as the input
+        probabilities.
+        """
+
+        warnings.warn("dropout doesn't use fixed_var_descr so it won't work "
+                      "with algorithms that make more than one theano "
+                      "function call per batch, such as BGD. Implementing "
+                      "fixed_var descr could increase the memory usage "
+                      "though.")
+
+        if input_include_probs is None:
+            input_include_probs = {}
+
+        if input_scales is None:
+            input_scales = {}
+
+        #self._validate_layer_names(list(input_include_probs.keys()))
+        #self._validate_layer_names(list(input_scales.keys()))
+
+        theano_rng = MRG_RandomStreams(max(self.rng.randint(2 ** 15), 1))
+
+        #for layer in self.layers:
+        #    layer_name = layer.layer_name
+
+        #    if layer_name in input_include_probs:
+        #        include_prob = input_include_probs[layer_name]
+        #    else:
+        include_prob = default_input_include_prob
+
+            #if layer_name in input_scales:
+            #    scale = input_scales[layer_name]
+            #else:
+        scale = default_input_scale
+        state_below = self.apply_dropout(
+                state=state_below,
+                include_prob=include_prob,
+                theano_rng=theano_rng,
+                scale=scale,
+                
+                #check
+                mask_value=0,
+                input_space=self.get_input_space(),
+                per_example=per_example
+            )
+        state_below = self.fprop(state_below)
+
+        return state_below
+
+
+
+
+
+
+
+
+
+
+class vLBLNCE(vLBLSoft):
+    
+    def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
+        super(vLBLNCE, self).__init__(dict_size, dim, context_length,k)
+        self.k = k
+
+    def score(self, X, Y, noisegiven=False):
+        """
+        So takes X which is context.
+        gets r_w which project returns
+        gets q_hat = from calculating fprop which gives us the predicted representation.
+        Then finds score by doing dot product with the target representation
+        """
+        X = self.projector_context.project(X)
+        q_h = self.fprop(X)
+            
+        if noisegiven == False:
+            q_w = self.projector_target.project(Y)
+            swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
+        else:
+            q_w = self.projector_target.project(Y)
+            q_h = q_h.dimshuffle(0,'x',1)
+            #shape is number of examples x noise_per_clean x dimensions
+            swh = (q_w*q_h).sum(axis=2) + self.b[Y]
+        return swh
+        #shape is numExamples x noise+per+clean
+
+        #return self.score(X, Y, ndim = ndim) - T.log(self.k * p_n)
+    def prob_data_given_word_theta(self,delta_rval):
+        return T.nnet.sigmoid(delta_rval)
+
+    def delta(self, data,noise=None):
+        X, Y = data
+        if noise is None:
+            p_n = 1. / self.dict_size
+            de = self.score(X,Y)
+            de = de - T.log(self.k*p_n)
+            return de
+        else:
+            p_n = 1. / self.dict_size
+            s = self.score(X,noise,True)
+            #this de is 15x3. score for each of the noise sample
+            de = s - T.log(self.k*p_n)
+            return s,de
+        #this is only for uniform(?)
+
+    # def cost_from_X(self,data):
+    #     delta_rval = self.delta(data)
+    #     prob = self.prob_data_given_word_theta(delta_rval)
+    #     logprob = T.log(prob)
+    #     logprobnoise = T.log(1-prob) 
+    #     return -(T.mean(logprob)+T.mean(logprobnoise))
+    #     #return -T.mean(delta_rv)
+    #     #expectation over data of log prob_data_given_word_theta
+    #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
+
+class CostNCE(Cost):
+    def __init__(self,samples):
+        assert isinstance (samples, py_integer_types)
+        self.noise_per_clean = samples
+        self.random_stream = RandomStreams(seed=1)
+
+    def expr(self,model,data):
+        return None
+
+    def get_data_specs(self, model):
+        space = CompositeSpace((model.get_input_space(),
+                                model.get_output_space()))
+        source = (model.get_input_source(), model.get_target_source())
+        return (space, source)
+
+    def get_gradients(self, model, data, **kwargs):
+        params = model.get_params()
+        X,Y=data
+        theano_rng = RandomStreams(0)
+        noise = theano_rng.uniform(size=(Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
+        noise = np.ones((100,15))
+        #noise = noise.reshape((Y.shape[0],self.noise_per_clean))
+        #this is 15x3
+        #both of below are 15x3
+        score_noise,delta_noise = model.delta(data,noise)
+        
+        to_sum = T.nnet.sigmoid(delta_noise.flatten())
+        to_sum = to_sum * theano.gradient.jacobian(score_noise.flatten(),params)
+        noise_part = T.mean(to_sum)
+
+        delta_y = model.delta(data)
+        prob = T.nnet.sigmoid(delta_y)
+        phw = T.exp(model.score(X,Y))
+        
+        grads = (1-prob)(theano.gradient.jacobian(phw,params))- noise_part
+
+        gradients = OrderedDict(izip(params, grads))
+        updates = OrderedDict()
+        return gradients, updates
+
+
+
+
+
+
+
+
+
+
+
+
 
 # class vLBL(Model):
     
@@ -168,7 +420,7 @@ class vLBLSoft(Model):
 #         return -T.mean(T.log(prob))
     
 #     def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
-# 	super(vLBL, self).__init__()
+#   super(vLBL, self).__init__()
 #         rng = np.random.RandomState(seed)
 #         self.rng = rng
 #         self.context_length = context_length
@@ -285,101 +537,3 @@ class vLBLSoft(Model):
 #         rval['perplexity'] = 10 ** (rval['nll']/np.log(10).astype('float32'))
 #         return rval
 
-
-
-class vLBLNCE(vLBLSoft):
-    
-    def __init__(self, dict_size, dim, context_length, k, irange = 0.1, seed = 22):
-        super(vLBLNCE, self).__init__(dict_size, dim, context_length,k)
-        self.k = k
-
-    def score(self, X, Y, noisegiven=False):
-        """
-        So takes X which is context.
-        gets r_w which project returns
-        gets q_hat = from calculating fprop which gives us the predicted representation.
-        Then finds score by doing dot product with the target representation
-        """
-        X = self.projector_context.project(X)
-        q_h = self.fprop(X)
-            
-        if noisegiven == False:
-            q_w = self.projector_target.project(Y)
-            swh = (q_w*q_h).sum(axis=1) + self.b[Y].flatten()
-        else:
-            q_w = self.projector_target.project(Y)
-            q_h = q_h.dimshuffle(0,'x',1)
-            #shape is number of examples x noise_per_clean x dimensions
-            swh = (q_w*q_h).sum(axis=2) + self.b[Y]
-        return swh
-        #shape is numExamples x noise+per+clean
-
-        #return self.score(X, Y, ndim = ndim) - T.log(self.k * p_n)
-    def prob_data_given_word_theta(self,delta_rval):
-        return T.nnet.sigmoid(delta_rval)
-
-    def delta(self, data,noise=None):
-        X, Y = data
-        if noise is None:
-            p_n = 1. / self.dict_size
-            de = self.score(X,Y)
-            de = de - T.log(self.k*p_n)
-            return de
-        else:
-            p_n = 1. / self.dict_size
-            s = self.score(X,noise,True)
-            #this de is 15x3. score for each of the noise sample
-            de = s - T.log(self.k*p_n)
-            return s,de
-        #this is only for uniform(?)
-
-    # def cost_from_X(self,data):
-    #     delta_rval = self.delta(data)
-    #     prob = self.prob_data_given_word_theta(delta_rval)
-    #     logprob = T.log(prob)
-    #     logprobnoise = T.log(1-prob) 
-    #     return -(T.mean(logprob)+T.mean(logprobnoise))
-    #     #return -T.mean(delta_rv)
-    #     #expectation over data of log prob_data_given_word_theta
-    #     # + k* (expectation over noise distribution)[1 - prob_data_given_word_theta]
-
-
-class CostNCE(Cost):
-    def __init__(self,samples):
-        assert isinstance (samples, py_integer_types)
-        self.noise_per_clean = samples
-        self.random_stream = RandomStreams(seed=1)
-
-    def expr(self,model,data):
-        return None
-
-    def get_data_specs(self, model):
-        space = CompositeSpace((model.get_input_space(),
-                                model.get_output_space()))
-        source = (model.get_input_source(), model.get_target_source())
-        return (space, source)
-
-    def get_gradients(self, model, data, **kwargs):
-        params = model.get_params()
-        X,Y=data
-        theano_rng = RandomStreams(0)
-        noise = theano_rng.uniform(size=(Y.shape[0]*self.noise_per_clean,1) , low = 0, high = 10000, dtype='int32')
-        noise = np.ones((100,15))
-        #noise = noise.reshape((Y.shape[0],self.noise_per_clean))
-        #this is 15x3
-        #both of below are 15x3
-        score_noise,delta_noise = model.delta(data,noise)
-        
-        to_sum = T.nnet.sigmoid(delta_noise.flatten())
-        to_sum = to_sum * theano.gradient.jacobian(score_noise.flatten(),params)
-        noise_part = T.mean(to_sum)
-
-        delta_y = model.delta(data)
-        prob = T.nnet.sigmoid(delta_y)
-        phw = T.exp(model.score(X,Y))
-        
-        grads = (1-prob)(theano.gradient.jacobian(phw,params))- noise_part
-
-        gradients = OrderedDict(izip(params, grads))
-        updates = OrderedDict()
-        return gradients, updates

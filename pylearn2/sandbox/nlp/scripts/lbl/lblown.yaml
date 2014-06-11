@@ -8,7 +8,7 @@
         which_set: 'train',
         context_len: &context_len 6
     },
-    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBLSoft {
+    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBL {
         dict_size: 10000,
         dim: 512,
         context_length: *context_len,
@@ -20,15 +20,6 @@
         learning_rate: 0.5,
         learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
                 init_momentum: 0.5,
-        },
-        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
-            !obj:pylearn2.sandbox.nlp.models.lblcost.Default {},
-            !obj:pylearn2.sandbox.nlp.models.lblcost.Dropout {
-                #coeffs: [ .00005, .00005, .00005 ]
-                default_input_include_prob: 0.5,
-                default_input_scale: 2.
-            }
-            ]
         },
         monitoring_dataset: {
             'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
@@ -43,4 +34,10 @@
         },
     },
 
+
+
+
+
+       
+    
 }
