@@ -8,16 +8,19 @@
         which_set: 'train',
         context_len: &context_len 6
     },
-    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBLSoft {
+    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBL {
         dict_size: 10000,
-        dim: 500,
+        dim: 180,
         context_length: *context_len,
         k: 50,
-        irange: 0.005
+        irange: 0.005,
+        max_col_norm: 35,
     },
     algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
         batch_size: 100,
-        learning_rate: 0.5,
+        train_iteration_mode: 'even_shuffled_sequential',
+        monitor_iteration_mode: 'even_shuffled_sequential',
+        learning_rate: 0.35,
         learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
                 init_momentum: 0.5,
         },
@@ -26,7 +29,7 @@
             !obj:pylearn2.sandbox.nlp.models.lblcost.Dropout {
                 #coeffs: [ .00005, .00005, .00005 ]
                 default_input_include_prob: 0.5,
-                default_input_scale: 5.
+                default_input_scale: 7.
             }
             ]
         },
@@ -36,6 +39,10 @@
                 context_len: *context_len
             },
             'train' : *train,
+            'test' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
+                which_set: 'test',
+                context_len: *context_len
+            },
         },
         termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
             channel_name: 'valid_perplexity',
@@ -43,5 +50,22 @@
             N: 10
         },
     },
-
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_perplexity',
+             save_path: "best180,norm35,0.005,0.35,drop,saturate25,finmom0.9.pkl"
+        },
+        !obj:pylearn2.training_algorithms.learning_rule.MomentumAdjustor {
+            start: 1,
+            saturate: 20,
+            final_momentum: 0.9
+        },
+        !obj:pylearn2.training_algorithms.sgd.LinearDecayOverEpoch {
+            start: 1,
+            saturate: 25,
+            decay_factor: 0.001
+        },
+    ],
+    save_path: "180,norm35,0.005,0.35,drop,saturate25,finmom0.9.pkl",
+    save_freq: 3
 }
