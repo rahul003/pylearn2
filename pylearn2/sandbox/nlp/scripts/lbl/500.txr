@@ -1,0 +1,192 @@
+Monitoring step:
+        Epochs seen: 0
+        Batches seen: 0
+        Examples seen: 0
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 0.0
+        train_nll: 9.20957660675
+        train_objective: 18.4191493988
+        train_perplexity: 9992.53710938
+        train_term_0: 9.20957660675
+        train_term_1: 9.2095785141
+        training_seconds_this_epoch: 0.0
+        valid_nll: 9.21019554138
+        valid_objective: 18.4203929901
+        valid_perplexity: 9998.84765625
+        valid_term_0: 9.21019554138
+        valid_term_1: 9.21019649506
+Time this epoch: 0:08:14.072758
+Monitoring step:
+        Epochs seen: 1
+        Batches seen: 9296
+        Examples seen: 929583
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 0.0
+        train_nll: 5.60433530807
+        train_objective: 11.0266666412
+        train_perplexity: 301.348358154
+        train_term_0: 5.60433530807
+        train_term_1: 5.4223947525
+        training_seconds_this_epoch: 494.112457275
+        valid_nll: 5.65570259094
+        valid_objective: 11.2449769974
+        valid_perplexity: 320.278503418
+        valid_term_0: 5.65570259094
+        valid_term_1: 5.59395933151
+Time this epoch: 0:08:18.785629
+Monitoring step:
+        Epochs seen: 2
+        Batches seen: 18592
+        Examples seen: 1859166
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 667.012207031
+        train_nll: 5.34670782089
+        train_objective: 10.4694337845
+        train_perplexity: 235.413299561
+        train_term_0: 5.34670782089
+        train_term_1: 5.12308168411
+        training_seconds_this_epoch: 498.738342285
+        valid_nll: 5.47255659103
+        valid_objective: 10.9403810501
+        valid_perplexity: 270.183044434
+        valid_term_0: 5.47255659103
+        valid_term_1: 5.4692492485
+Time this epoch: 0:08:17.490219
+Monitoring step:
+        Epochs seen: 3
+        Batches seen: 27888
+        Examples seen: 2788749
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 670.417602539
+        train_nll: 5.17120742798
+        train_objective: 10.1275224686
+        train_perplexity: 199.90234375
+        train_term_0: 5.17120742798
+        train_term_1: 4.95617341995
+        training_seconds_this_epoch: 497.527191162
+        valid_nll: 5.37376117706
+        valid_objective: 10.8561439514
+        valid_perplexity: 248.37411499
+        valid_term_0: 5.37376117706
+        valid_term_1: 5.48336791992
+Time this epoch: 0:08:18.221382
+Monitoring step:
+        Epochs seen: 4
+        Batches seen: 37184
+        Examples seen: 3718332
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 667.281188965
+        train_nll: 5.05403709412
+        train_objective: 9.79782485962
+        train_perplexity: 177.050613403
+        train_term_0: 5.05403709412
+        train_term_1: 4.74446344376
+        training_seconds_this_epoch: 498.171173096
+        valid_nll: 5.33527851105
+        valid_objective: 10.7964410782
+        valid_perplexity: 238.845535278
+        valid_term_0: 5.33527851105
+        valid_term_1: 5.46164703369
+Time this epoch: 0:08:15.859189
+
+Monitoring step:
+        Epochs seen: 5
+        Batches seen: 46480
+        Examples seen: 4647915
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 671.364501953
+        train_nll: 4.92297172546
+        train_objective: 9.54655838013
+        train_perplexity: 155.624252319
+        train_term_0: 4.92297172546
+        train_term_1: 4.62357616425
+        training_seconds_this_epoch: 495.879852295
+        valid_nll: 5.2861738205
+        valid_objective: 10.8284158707
+        valid_perplexity: 229.408630371
+        valid_term_0: 5.2861738205
+        valid_term_1: 5.54003095627
+Time this epoch: 0:08:17.663386
+Monitoring step:
+        Epochs seen: 6
+        Batches seen: 55776
+        Examples seen: 5577498
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 668.973510742
+        train_nll: 4.78643131256
+        train_objective: 9.28415679932
+        train_perplexity: 135.088912964
+        train_term_0: 4.78643131256
+        train_term_1: 4.49659347534
+        training_seconds_this_epoch: 497.640625
+        valid_nll: 5.24795770645
+        valid_objective: 10.9025421143
+        valid_perplexity: 221.644989014
+        valid_term_0: 5.24795770645
+        valid_term_1: 5.66172981262
+Time this epoch: 0:08:19.777810
+
+Time this epoch: 0:08:19.777810
+Monitoring step:
+        Epochs seen: 7
+        Batches seen: 65072
+        Examples seen: 6507081
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 669.502258301
+        train_nll: 4.68669652939
+        train_objective: 9.0518913269
+        train_perplexity: 121.877342224
+        train_term_0: 4.68669652939
+        train_term_1: 4.36511659622
+        training_seconds_this_epoch: 499.800384521
+        valid_nll: 5.2350897789
+        valid_objective: 10.9573507309
+        valid_perplexity: 219.480072021
+        valid_term_0: 5.2350897789
+        valid_term_1: 5.72590351105
+Time this epoch: 0:08:17.082894
+Monitoring step:
+        Epochs seen: 8
+        Batches seen: 74368
+        Examples seen: 7436664
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 667.283752441
+        train_nll: 4.56461191177
+        train_objective: 8.81746768951
+        train_perplexity: 107.280784607
+        train_term_0: 4.56461191177
+        train_term_1: 4.25237464905
+        training_seconds_this_epoch: 497.0362854
+        valid_nll: 5.20437288284
+        valid_objective: 11.0357513428
+        valid_perplexity: 213.570159912
+        valid_term_0: 5.20437288284
+        valid_term_1: 5.83397340775
+Time this epoch: 0:08:15.583622
+Monitoring step:
+        Epochs seen: 9
+        Batches seen: 83664
+        Examples seen: 8366247
+        learning_rate: 0.500036120415
+        momentum: 0.500036120415
+        total_seconds_last_epoch: 669.901489258
+        train_nll: 4.48318862915
+        train_objective: 8.6448764801
+        train_perplexity: 98.6010437012
+        train_term_0: 4.48318862915
+        train_term_1: 4.16224002838
+        training_seconds_this_epoch: 495.598693848
+        valid_nll: 5.20793247223
+        valid_objective: 11.1521444321
+        valid_perplexity: 215.555648804
+        valid_term_0: 5.20793247223
+        valid_term_1: 5.94490766525

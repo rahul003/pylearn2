@@ -376,7 +376,8 @@ class CostNCE(Cost):
         #both of below are 15x3
         score_noise,delta_noise = model.delta(data,dtynoise)
         
-
+        print T.nnet.sigmoid(delta_noise.flatten()).type
+        print theano.gradient.jacobian(score_noise.flatten(),params)[0].type
         to_sum = T.nnet.sigmoid(delta_noise.flatten()) * theano.gradient.jacobian(score_noise.flatten(),params)
         noise_part = T.mean(to_sum)
 
