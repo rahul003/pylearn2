@@ -3,9 +3,10 @@ __authors__ = "Ian Goodfellow"
 __copyright__ = "Copyright 2010-2012, Universite de Montreal"
 __credits__ = ["Ian Goodfellow"]
 __license__ = "3-clause BSD"
-__maintainer__ = "Ian Goodfellow"
-__email__ = "goodfeli@iro"
+__maintainer__ = "LISA Lab"
+__email__ = "pylearn-dev@googlegroups"
 
+from collections import defaultdict
 from itertools import izip as izip_no_length_check
 import numpy as np
 import warnings
@@ -38,7 +39,7 @@ class Model(object):
             extensions = []
         else:
             assert isinstance(extensions, list)
-            assert all(isinstance(extensions, ModelExtension) for extension in
+            assert all(isinstance(extension, ModelExtension) for extension in
                        extensions)
 
         self.__dict__.update(locals())
@@ -427,9 +428,12 @@ class Model(object):
     def get_input_source(self):
         """
         Returns a string, stating the source for the input. By default the
-        input source (when is the only one) is called 'features'.
+        model expects only one input source, which is called 'features'.
         """
-        return 'features'
+        if hasattr(self, 'input_source'):
+            return self.input_source
+        else:
+            return 'features'
 
     def get_target_source(self):
         """
@@ -686,3 +690,27 @@ class Model(object):
         self.modify_updates(updates)
         f = function([], updates=updates)
         f()
+
+    @property
+    def tag(self):
+        """
+        A "scratch-space" for storing model metadata.
+
+        Returns
+        -------
+        tag : defaultdict
+            A defaultdict with "dict" as the default constructor. This
+            lets you do things like `model.tag[ext_name][quantity_name]`
+            without the annoyance of first initializing the dict
+            `model.tag[ext_name]`.
+
+        Notes
+        -----
+        Nothing critical to the implementation of a particular model or
+        training algorithm in the library should get stored in `tag`. This
+        is mainly for extensions or user code to take advantage of, and
+        segregate such things from actual model implementation attributes.
+        """
+        if not hasattr(self, '_tag'):
+            self._tag = defaultdict(dict)
+        return self._tag

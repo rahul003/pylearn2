@@ -5,7 +5,7 @@ __authors__ = "Ian Goodfellow"
 __copyright__ = "Copyright 2012-2013, Universite de Montreal"
 __credits__ = ["Ian Goodfellow", "David Warde-Farley"]
 __license__ = "3-clause BSD"
-__maintainer__ = "Ian Goodfellow"
+__maintainer__ = "LISA Lab"
 
 import logging
 import math
@@ -18,6 +18,7 @@ from theano.compat.python2x import OrderedDict
 from theano.gof.op import get_debug_values
 from theano.printing import Print
 from theano.sandbox.rng_mrg import MRG_RandomStreams
+from theano.tensor.signal.downsample import max_pool_2d
 import theano.tensor as T
 
 from pylearn2.costs.mlp import Default
@@ -40,8 +41,9 @@ from pylearn2.utils import safe_zip
 from pylearn2.utils import safe_izip
 from pylearn2.utils import sharedX
 from pylearn2.utils import wraps
+from pylearn2.utils.data_specs import DataSpecsMapping
 
-from pylearn2.expr.nnet import (kl, compute_precision,
+from pylearn2.expr.nnet import (elemwise_kl, kl, compute_precision,
                                     compute_recall, compute_f1)
 
 # Only to be used by the deprecation warning wrapper functions
@@ -146,9 +148,9 @@ class Layer(Model):
             A dictionary mapping channel names to monitoring channels of
             interest for this layer.
         """
-        warnings.warn("Layer.get_monitoring_channels is " + \
+        warnings.warn("Layer.get_monitoring_channels_from_state is " + \
                     "deprecated. Use get_layer_monitoring_channels " + \
-                    "instead. Layer.get_monitoring_channels " + \
+                    "instead. Layer.get_monitoring_channels_from_state " + \
                     "will be removed on or after september 24th 2014",
                     stacklevel=2)
 
@@ -261,14 +263,6 @@ class Layer(Model):
         raise NotImplementedError(str(type(self)) +
                                   " does not implement mlp.Layer.cost_matrix")
 
-    def get_weights(self):
-        """
-        .. todo::
-
-            WRITEME
-        """
-        raise NotImplementedError
-
     def set_weights(self, weights):
         """
         Sets the weights of the layer.
@@ -324,7 +318,7 @@ class Layer(Model):
 
     def get_weight_decay(self, coeff):
         """
-        Provides an expresion for a squared L2 penalty on the weights.
+        Provides an expression for a squared L2 penalty on the weights.
 
         Parameters
         ----------
@@ -349,7 +343,7 @@ class Layer(Model):
 
     def get_l1_weight_decay(self, coeff):
         """
-        Provides an expresion for an L1 penalty on the weights.
+        Provides an expression for an L1 penalty on the weights.
 
         Parameters
         ----------
@@ -410,12 +404,17 @@ class MLP(Layer):
         Number of "visible units" (input units). Equivalent to specifying
         `input_space=VectorSpace(dim=nvis)`. Note that certain methods require
         a different type of input space (e.g. a Conv2Dspace in the case of
-        convnets). Use the input_space parameter in such cases. Should be 
+        convnets). Use the input_space parameter in such cases. Should be
         None if the MLP is part of another MLP.
     input_space : Space object, optional
         A Space specifying the kind of input the MLP accepts. If None,
         input space is specified by nvis. Should be None if the MLP is
         part of another MLP.
+    input_source : string or (nested) tuple of strings, optional
+        A (nested) tuple of strings specifiying the input sources this
+        MLP accepts. The structure should match that of input_space. The
+        default is 'features'. Note that this argument is ignored when
+        the MLP is nested.
     layer_name : name of the MLP layer. Should be None if the MLP is
         not part of another MLP.
     seed : WRITEME
@@ -424,7 +423,8 @@ class MLP(Layer):
     """
 
     def __init__(self, layers, batch_size=None, input_space=None,
-                 nvis=None, seed=None, layer_name=None, **kwargs):
+                 input_source='features', nvis=None, seed=None,
+                 layer_name=None, **kwargs):
         super(MLP, self).__init__(**kwargs)
 
         self.seed = seed
@@ -446,14 +446,15 @@ class MLP(Layer):
 
             self.layer_names.add(layer.layer_name)
 
-
-
         self.layers = layers
 
         self.batch_size = batch_size
         self.force_batch_size = batch_size
 
+        self._input_source = input_source
+
         if input_space is not None or nvis is not None:
+            self._nested = False
             self.setup_rng()
 
             # check if the layer_name is None (the MLP is the outer MLP)
@@ -462,9 +463,21 @@ class MLP(Layer):
             if nvis is not None:
                 input_space = VectorSpace(nvis)
 
+            # Check whether the input_space and input_source structures match
+            try:
+                DataSpecsMapping((input_space, input_source))
+            except ValueError:
+                raise ValueError("The structures of `input_space`, %s, and "
+                                 "`input_source`, %s do not match. If you "
+                                 "specified a CompositeSpace as an input, "
+                                 "be sure to specify the data sources as well."
+                                 % (input_space, input_source))
+
             self.input_space = input_space
 
             self._update_layer_input_spaces()
+        else:
+            self._nested = True
 
         self.freeze_set = set([])
 
@@ -473,12 +486,18 @@ class MLP(Layer):
                 return None
             return 1. / x
 
+    @property
+    def input_source(self):
+        assert not self._nested, "A nested MLP does not have an input source"
+        return self._input_source
+
     def setup_rng(self):
         """
         .. todo::
 
             WRITEME
         """
+        assert not self._nested, "Nested MLPs should use their parent's RNG"
         if self.seed is None:
             self.seed = [2013, 1, 4]
 
@@ -498,6 +517,7 @@ class MLP(Layer):
     def set_input_space(self, space):
 
         if hasattr(self, "mlp"):
+            assert self._nested
             self.rng = self.mlp.rng
             self.batch_size = self.mlp.batch_size
 
@@ -569,18 +589,11 @@ class MLP(Layer):
         state = X
         rval = self.get_layer_monitoring_channels(state_below=X,
                                                     targets=Y)
-        
+
         return rval
 
     @wraps(Layer.get_monitoring_channels_from_state)
     def get_monitoring_channels_from_state(self, state, target=None):
-        #
-        # Notes
-        # -----
-        # We are only monitoring the last layer for data dependent channels.
-        # If you want to monitor every inner layer you should change the
-        # get_monitoring_channels_from_state method.
-
         warnings.warn("Layer.get_monitoring_channels_from_state is " + \
                     "deprecated. Use get_layer_monitoring_channels " + \
                     "instead. Layer.get_monitoring_channels_from_state " + \
@@ -626,76 +639,34 @@ class MLP(Layer):
 
 
     @wraps(Layer.get_layer_monitoring_channels)
-    def get_layer_monitoring_channels(self, state_below=None, state=None, targets=None):
+    def get_layer_monitoring_channels(self, state_below=None,
+                                        state=None, targets=None):
 
         rval = OrderedDict()
-        if state_below is not None:
-            state = state_below
+        state = state_below
 
-            for layer in self.layers:
-                # We don't go through all the inner layers recursively
-                print type(layer)
-                state = layer.fprop(state)
-                args = [None, state]
-                if layer is self.layers[-1] and targets is not None:
-                    args.append(targets)
-                ch = layer.get_layer_monitoring_channels(*args)
-                if not isinstance(ch, OrderedDict):
-                    raise TypeError(str((type(ch), layer.layer_name)))
-                for key in ch:
-                    value = ch[key]
-                    doc = get_monitor_doc(value)
-                    if doc is None:
-                        doc = str(type(layer)) + \
-                            ".get_monitoring_channels_from_state did" + \
-                            " not provide any further documentation for" + \
-                            " this channel."
-                    doc = 'This channel came from a layer called "' + \
-                            layer.layer_name + '" of an MLP.\n' + doc
-                    value.__doc__ = doc
-                    rval[layer.layer_name+'_'+key] = value
-
-
-        elif state is not None:
-
-            for layer in self.layers:
-                if layer is self.layers[-1]:
-                    args = [None, state]
-                    if targets is not None:
-                        args.append(targets)
-                    ch = layer.get_layer_monitoring_channels(*args)
-                else:
-                    ch = layer.get_layer_monitoring_channels()
-                for key in ch:
-                    value = ch[key]
-                    doc = get_monitor_doc(value)
-                    if doc is None:
-                        doc = str(type(layer)) + \
-                            ".get_monitoring_channels did" + \
-                            " not provide any further documentation for" + \
-                            " this channel."
-                    doc = 'This channel came from a layer called "' + \
-                            layer.layer_name + '" of an MLP.\n' + doc
-                    value.__doc__ = doc
-                    rval[layer.layer_name+'_'+key] = value
-
-        else:
-            for layer in self.layers:
-                ch = layer.get_layer_monitoring_channels()
-                if not isinstance(ch, OrderedDict):
-                    raise TypeError(str((type(ch), layer.layer_name)))
-                for key in ch:
-                    value = ch[key]
-                    doc = get_monitor_doc(value)
-                    if doc is None:
-                        doc = str(type(layer)) + \
-                            ".get_monitoring_channels_from_state did" + \
-                            " not provide any further documentation for" + \
-                            " this channel."
-                    doc = 'This channel came from a layer called "' + \
-                            layer.layer_name + '" of an MLP.\n' + doc
-                    value.__doc__ = doc
-                    rval[layer.layer_name+'_'+key] = value
+        for layer in self.layers:
+            # We don't go through all the inner layers recursively
+            state_below = state
+            state = layer.fprop(state)
+            args = [state_below, state]
+            if layer is self.layers[-1] and targets is not None:
+                args.append(targets)
+            ch = layer.get_layer_monitoring_channels(*args)
+            if not isinstance(ch, OrderedDict):
+                raise TypeError(str((type(ch), layer.layer_name)))
+            for key in ch:
+                value = ch[key]
+                doc = get_monitor_doc(value)
+                if doc is None:
+                    doc = str(type(layer)) + \
+                        ".get_monitoring_channels_from_state did" + \
+                        " not provide any further documentation for" + \
+                        " this channel."
+                doc = 'This channel came from a layer called "' + \
+                        layer.layer_name + '" of an MLP.\n' + doc
+                value.__doc__ = doc
+                rval[layer.layer_name+'_'+key] = value
 
         return rval
 
@@ -748,8 +719,9 @@ class MLP(Layer):
         for layer, coeff in safe_izip(self.layers, coeffs):
             if coeff != 0.:
                 layer_costs += [layer.get_weight_decay(coeff)]
-            else:
-                layer_costs += [0.]
+
+        if len(layer_costs) == 0:
+            return T.constant(0, dtype=config.floatX)
 
         total_cost = reduce(lambda x, y: x + y, layer_costs)
 
@@ -766,8 +738,9 @@ class MLP(Layer):
         for layer, coeff in safe_izip(self.layers, coeffs):
             if coeff != 0.:
                 layer_costs += [layer.get_l1_weight_decay(coeff)]
-            else:
-                layer_costs += [0.]
+
+        if len(layer_costs) == 0:
+            return T.constant(0, dtype=config.floatX)
 
         total_cost = reduce(lambda x, y: x + y, layer_costs)
 
@@ -791,23 +764,7 @@ class MLP(Layer):
     @wraps(Layer.get_lr_scalers)
     def get_lr_scalers(self):
 
-        rval = OrderedDict()
-
-        params = self.get_params()
-
-        for layer in self.layers:
-            contrib = layer.get_lr_scalers()
-
-            assert isinstance(contrib, OrderedDict)
-            # No two layers can contend to scale a parameter
-            assert not any([key in rval for key in contrib])
-            # Don't try to scale anything that's not a parameter
-            assert all([key in params for key in contrib])
-
-            rval.update(contrib)
-        assert all([isinstance(val, float) for val in rval.values()])
-
-        return rval
+        return get_lr_scalers_from_layers(self)
 
     @wraps(Layer.get_weights)
     def get_weights(self):
@@ -1252,7 +1209,7 @@ class Softmax(Layer):
                     "instead. Layer.get_monitoring_channels " + \
                     "will be removed on or after september 24th 2014",
                     stacklevel=2)
-        print 'in get_monitoring_channels'
+
         if self.no_affine:
             return OrderedDict()
 
@@ -1323,7 +1280,7 @@ class Softmax(Layer):
         # channels that does not require state information
         if self.no_affine:
             rval = OrderedDict()
-        print 'in get_layer_monitoring_channels'
+
         W = self.W
 
         assert W.ndim == 2
@@ -1432,10 +1389,12 @@ class Softmax(Layer):
 
     @wraps(Layer.set_weights)
     def set_weights(self, weights):
+
         self.W.set_value(weights)
 
     @wraps(Layer.set_biases)
     def set_biases(self, biases):
+
         self.b.set_value(biases)
 
     @wraps(Layer.get_biases)
@@ -1445,6 +1404,7 @@ class Softmax(Layer):
 
     @wraps(Layer.get_weights_format)
     def get_weights_format(self):
+
         return ('v', 'h')
 
     @wraps(Layer.fprop)
@@ -1481,23 +1441,6 @@ class Softmax(Layer):
     @wraps(Layer.cost)
     def cost(self, Y, Y_hat):
 
-        """
-        To find the cost of outputting Y_hat instead of Y
-
-        Y_hat is coming out of some apply node. 
-        First check if it has an owner
-        And find its op.
-        Then find its inputs as z
-        op will be softmax
-        input will be hW+b
-        we are further checking that this is 2D
-
-
-        the assumption that softmax makes is
-            logp(y given x)=xTW+b+c(x)
-        so p(y given x) = softmax(xTW + b)
-        then sum(ez)
-        """
         assert hasattr(Y_hat, 'owner')
         owner = Y_hat.owner
         assert owner is not None
@@ -1511,17 +1454,7 @@ class Softmax(Layer):
         z, = owner.inputs
         assert z.ndim == 2
 
-        #z.max along axis =1 means the maximum value in each column
-        #because operation is performed over eeach row.check maximum 
-        #over all rows of each column
         z = z - z.max(axis=1).dimshuffle(0, 'x')
-
-        #why are we submtracting the maximum value of z
-
-        #dimshuffle(0,'x') makes a column out of a 1d vector.
-        #i.e. N to Nx1
-        #because i guess z is a column vector
-
         log_prob = z - T.log(T.exp(z).sum(axis=1).dimshuffle(0, 'x'))
         # we use sum and not mean because this is really one variable per row
         log_prob_of = (Y * log_prob).sum(axis=1)
@@ -2635,8 +2568,6 @@ class Sigmoid(Linear):
         Y_hat : Variable
             predictions made by the sigmoid layer. Y_hat must be generated by
             fprop, i.e., it must be a symbolic sigmoid.
-        batch_axis : list
-            list of axes to compute average kl divergence across.
 
         Returns
         -------
@@ -2660,6 +2591,12 @@ class Sigmoid(Linear):
         batch_axis = self.output_space.get_batch_axis()
         div = kl(Y=Y, Y_hat=Y_hat, batch_axis=batch_axis)
         return div
+
+    @wraps(Layer.cost_matrix)
+    def cost_matrix(self, Y, Y_hat):
+        rval = elemwise_kl(Y, Y_hat)
+        assert rval.ndim == 2
+        return rval
 
     def get_detection_channels_from_state(self, state, target):
         """
@@ -3331,7 +3268,7 @@ class ConvElemwise(Layer):
             output_shape = [(self.input_space.shape[0] + self.kernel_shape[0])
                             / self.kernel_stride[0] - 1,
                             (self.input_space.shape[1] + self.kernel_shape[1])
-                            / self.kernel_stride_stride[1] - 1]
+                            / self.kernel_stride[1] - 1]
 
         self.detector_space = Conv2DSpace(shape=output_shape,
                                           num_channels=self.output_channels,
@@ -3492,11 +3429,26 @@ class ConvElemwise(Layer):
 
         row_norms = T.sqrt(sq_W.sum(axis=(1, 2, 3)))
 
-        return OrderedDict([
+        rval = OrderedDict([
                            ('kernel_norms_min', row_norms.min()),
                            ('kernel_norms_mean', row_norms.mean()),
                            ('kernel_norms_max', row_norms.max()),
                            ])
+
+        orval = super(ConvElemwise, self).get_monitoring_channels_from_state(state,
+                                                                            targets)
+
+        rval.update(orval)
+
+        cst = self.cost
+        orval = self.nonlin.get_monitoring_channels_from_state(state,
+                                                               targets,
+                                                               cost_fn=cst)
+
+        rval.update(orval)
+
+        return rval
+
 
     @wraps(Layer.fprop)
     def fprop(self, state_below):
@@ -3749,6 +3701,15 @@ def max_pool(bc01, pool_shape, pool_stride, image_shape):
     assert pr <= r
     assert pc <= c
 
+    name = bc01.name
+    if name is None:
+        name = 'anon_bc01'
+
+    if pool_shape == pool_stride:
+        mx = max_pool_2d(bc01, pool_shape, False)
+        mx.name = 'max_pool('+name+')'
+        return mx
+
     # Compute index in pooled space of last needed pool
     # (needed = each input pixel must appear in at least one pool)
     def last_pool(im_shp, p_shp, p_strd):
@@ -3778,10 +3739,6 @@ def max_pool(bc01, pool_shape, pool_stride, image_shape):
                             bc01.shape[1],
                             required_r,
                             required_c)
-
-    name = bc01.name
-    if name is None:
-        name = 'anon_bc01'
 
     bc01 = T.set_subtensor(wide_infinity[:, :, 0:r, 0:c], bc01)
     bc01.name = 'infinite_padded_' + name
@@ -4330,9 +4287,9 @@ class CompositeLayer(Layer):
         The name of this layer
     layers : tuple or list
         The component layers to run in parallel.
-    inputs_to_components : dict mapping int to list of ints, optional
+    inputs_to_layers : dict mapping int to list of ints, optional
         Can only be used if the input space is a CompositeSpace.
-        If inputs_to_components[i] contains j, it means input i will
+        If inputs_to_layers[i] contains j, it means input i will
         be given as input to component j. Note that if multiple inputs are
         passed on to e.g. an inner CompositeLayer, the same order will
         be maintained. If the list is empty, the input will be discarded.
@@ -4344,7 +4301,7 @@ class CompositeLayer(Layer):
     >>> composite_layer = CompositeLayer(
     ...     layer_name='composite_layer',
     ...     layers=[Tanh(7, 'h0', 0.1), Sigmoid(5, 'h1', 0.1)],
-    ...     inputs_to_components={
+    ...     inputs_to_layers={
     ...         0: [1],
     ...         1: [0]
     ...     })
@@ -4358,8 +4315,8 @@ class CompositeLayer(Layer):
     ...     layers=[Linear(9, 'h2', 0.1),
     ...             composite_layer,
     ...             Tanh(7, 'h3', 0.1)],
-    ...     inputs_to_components={
-    ...         0: [0],
+    ...     inputs_to_layers={
+    ...         0: [1],
     ...         2: []
     ...     })
 
@@ -4465,7 +4422,7 @@ class CompositeLayer(Layer):
             assert all(layer_coeff >= 0 for layer_coeff in coeff)
             return T.sum([getattr(layer, method_name)(layer_coeff) for
                           layer, layer_coeff in safe_zip(self.layers, coeff)
-                          if layer_coeff > 0])
+                          if layer_coeff > 0], dtype=config.floatX)
         else:
             raise TypeError("CompositeLayer's " + method_name + " received "
                             "coefficients of type " + str(type(coeff)) + " "
@@ -4529,6 +4486,52 @@ class CompositeLayer(Layer):
         for layer in self.layers:
             layer.set_mlp(mlp)
 
+    @wraps(Layer.get_layer_monitoring_channels)
+    def get_layer_monitoring_channels(self, state_below=None,
+                                    state=None, targets=None):
+        rval = OrderedDict()
+        # TODO: reduce redundancy with fprop method
+        for i, layer in enumerate(self.layers):
+            if self.routing_needed and i in self.layers_to_inputs:
+                cur_state_below = [state_below[j]
+                                   for j in self.layers_to_inputs[i]]
+                # This is to mimic the behavior of CompositeSpace's restrict
+                # method, which only returns a CompositeSpace when the number
+                # of components is greater than 1
+                if len(cur_state_below) == 1:
+                    cur_state_below, = cur_state_below
+            else:
+                cur_state_below = state_below
+
+            if state is not None:
+                cur_state = state[i]
+            else:
+                cur_state = None
+
+            if targets is not None:
+                cur_targets = targets[i]
+            else:
+                cur_targets = None
+
+            d = layer.get_layer_monitoring_channels(cur_state_below,
+                    cur_state, cur_targets)
+
+            for key in d:
+                rval[layer.layer_name + '_' + key] = d[key]
+
+        return rval
+
+    @wraps(Model._modify_updates)
+    def _modify_updates(self, updates):
+        for layer in self.layers:
+            layer.modify_updates(updates)
+
+    @wraps(Layer.get_lr_scalers)
+    def get_lr_scalers(self):
+
+        return get_lr_scalers_from_layers(self)
+
+
 
 class FlattenerLayer(Layer):
     """
@@ -4570,10 +4573,50 @@ class FlattenerLayer(Layer):
     @wraps(Layer.get_input_space)
     def get_input_space(self):
         return self.raw_layer.get_input_space()
+    @wraps(Layer.get_monitoring_channels)
+    def get_monitoring_channels(self, data):
+        return self.raw_layer.get_monitoring_channels(data)
+
+    @wraps(Layer.get_layer_monitoring_channels)
+    def get_layer_monitoring_channels(self, state_below=None,
+                                      state=None, targets=None):
+        return self.raw_layer.get_layer_monitoring_channels(
+            state_below=state_below,
+            state=state,
+            targets=targets
+            )
+
+    @wraps(Layer.get_monitoring_data_specs)
+    def get_monitoring_data_specs(self):
+        return self.raw_layer.get_monitoring_data_specs()
 
     @wraps(Layer.get_params)
     def get_params(self):
         return self.raw_layer.get_params()
+
+    @wraps(Layer.get_weights)
+    def get_weights(self):
+        return self.raw_layer.get_weights()
+
+    @wraps(Layer.get_weight_decay)
+    def get_weight_decay(self, coeffs):
+        return self.raw_layer.get_weight_decay(coeffs)
+
+    @wraps(Layer.get_l1_weight_decay)
+    def get_l1_weight_decay(self, coeffs):
+        return self.raw_layer.get_l1_weight_decay(coeffs)
+
+    @wraps(Layer.set_batch_size)
+    def set_batch_size(self, batch_size):
+        self.raw_layer.set_batch_size(batch_size)
+
+    @wraps(Layer.censor_updates)
+    def censor_updates(self, updates):
+        self.raw_layer.censor_updates(updates)
+
+    @wraps(Layer.get_lr_scalers)
+    def get_lr_scalers(self):
+        return self.raw_layer.get_lr_scalers()
 
     @wraps(Layer.fprop)
     def fprop(self, state_below):
@@ -4908,3 +4951,37 @@ class BadInputSpaceError(TypeError):
     An error raised by an MLP layer when set_input_space is given an
     object that is not one of the Spaces that layer supports.
     """
+
+def get_lr_scalers_from_layers(owner):
+    """
+    Get the learning rate scalers for all member layers of
+    `owner`.
+
+    Parameters
+    ----------
+    owner : Model
+        Any Model with a `layers` field
+
+    Returns
+    -------
+    lr_scalers : OrderedDict
+        A dictionary mapping parameters of `owner` to learning
+        rate scalers.
+    """
+    rval = OrderedDict()
+
+    params = owner.get_params()
+
+    for layer in owner.layers:
+        contrib = layer.get_lr_scalers()
+
+        assert isinstance(contrib, OrderedDict)
+        # No two layers can contend to scale a parameter
+        assert not any([key in rval for key in contrib])
+        # Don't try to scale anything that's not a parameter
+        assert all([key in params for key in contrib])
+
+        rval.update(contrib)
+    assert all([isinstance(val, float) for val in rval.values()])
+
+    return rval

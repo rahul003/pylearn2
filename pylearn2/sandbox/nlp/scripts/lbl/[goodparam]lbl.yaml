@@ -1,0 +1,71 @@
+# This YAML file is an example of a simple language model which can be trained
+# on the Penn Treebank data. It uses a projection layer to embed words in a
+# 128-dimensional space.
+#
+
+!obj:pylearn2.train.Train {
+    dataset: &train !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
+        which_set: 'train',
+        context_len: &context_len 6
+    },
+    model: !obj:pylearn2.sandbox.nlp.models.vlbl.vLBL {
+        dict_size: 10000,
+        dim: 256,
+        context_length: *context_len,
+        k: 50,
+        irange: 0.001,
+        max_col_norm: 35,
+    },
+    algorithm: !obj:pylearn2.training_algorithms.sgd.SGD {
+        batch_size: 100,
+        train_iteration_mode: 'even_shuffled_sequential',
+        monitor_iteration_mode: 'even_shuffled_sequential',
+        learning_rate: 0.1,
+        learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
+                init_momentum: 0.5,
+        },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts { costs: [
+            !obj:pylearn2.sandbox.nlp.models.lblcost.Default {},
+            !obj:pylearn2.sandbox.nlp.models.lblcost.Dropout {
+                #coeffs: [ .00005, .00005, .00005 ]
+                default_input_include_prob: 0.5,
+                default_input_scale: 3.
+            }
+            ]
+        },
+        monitoring_dataset: {
+            'valid' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
+                which_set: 'valid',
+                context_len: *context_len
+            },
+            'train' : *train,
+            'test' : !obj:pylearn2.sandbox.nlp.datasets.penntree.PennTreebank {
+                which_set: 'test',
+                context_len: *context_len
+            },
+        },
+        termination_criterion: !obj:pylearn2.termination_criteria.MonitorBased {
+            channel_name: 'valid_perplexity',
+            prop_decrease: 0.,
+            N: 10
+        },
+    },
+    extensions: [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_perplexity',
+             save_path: "best180,norm35,0.005,0.35,drop,saturate25,finmom0.9.pkl"
+        },
+        !obj:pylearn2.training_algorithms.learning_rule.MomentumAdjustor {
+            start: 1,
+            saturate: 20,
+            final_momentum: 0.9
+        },
+        !obj:pylearn2.training_algorithms.sgd.LinearDecayOverEpoch {
+            start: 1,
+            saturate: 25,
+            decay_factor: 0.001
+        },
+    ],
+    save_path: "256,norm35,0.001,0.1,drop,saturate25,finmom0.9,drop3.pkl",
+    save_freq: 1
+}

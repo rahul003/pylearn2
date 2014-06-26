@@ -29,8 +29,8 @@ __authors__ = "Ian Goodfellow"
 __copyright__ = "Copyright 2010-2012, Universite de Montreal"
 __credits__ = ["Ian Goodfellow"]
 __license__ = "3-clause BSD"
-__maintainer__ = "Ian Goodfellow"
-__email__ = "goodfeli@iro"
+__maintainer__ = "LISA Lab"
+__email__ = "pylearn-dev@googlegroups"
 
 import functools, warnings
 import numpy as np
@@ -110,7 +110,11 @@ def is_numeric_batch(batch):
     (e.g. () for empty CompositeSpaces, None for NullSpaces).
     """
     def is_numeric(batch):
-        return isinstance(batch, np.ndarray) or scipy.sparse.issparse(batch)
+        # Uses the 'CudaNdarray' string to avoid importing
+        # theano.sandbox.cuda when it is not available
+        return (isinstance(batch, np.ndarray) or
+                scipy.sparse.issparse(batch) or
+                str(type(batch)) == "<type 'CudaNdarray'>")
 
     return _is_batch_all(batch, is_numeric)
 

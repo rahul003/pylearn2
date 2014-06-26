@@ -25,8 +25,7 @@ class MatrixMul(matrixmul.MatrixMul):
             a batch) which will be projected
         """
 
-        #assert 'int' in x.dtype
-
+        assert 'int' in str(x.dtype)
         if x.ndim == 2:
             #assert 'int' in x.flatten().dtype
             shape = (x.shape[0], x.shape[1] * self._W.shape[1])
